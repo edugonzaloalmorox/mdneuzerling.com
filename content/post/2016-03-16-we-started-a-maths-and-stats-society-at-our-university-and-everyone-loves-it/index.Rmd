@@ -1,0 +1,37 @@
+---
+title: We started a maths and stats society at our university, and everyone loves
+  it
+author: ''
+date: '2016-03-16'
+slug: we-started-a-maths-and-stats-society-at-our-university-and-everyone-loves-it
+categories: []
+tags:
+  - maths
+images: ["/img/katherine_crochet.jpg"]
+featuredalt: "Dr. Katherine Seaton's crocheted hyperbolic surfaces"
+output: hugodown::md_document
+---
+
+Last year an honours student noticed something missing in mathematics and statistics at La Trobe University. She saw that there was no society at the university to cultivate an interest in mathematics. There were no social events to help the undergraduate students get to know one another. And there was very little in the way of extracurricular lectures for students without several years of mathematical study already under their belt. So she started the Mathematics and Statistics Society at La Trobe University.
+
+I was elected as the inaugural secretary of the society, and we formed an executive of four amongst a broader committee of nine. We were green. It's not like we had formed a student society before, so we did our research and did the best we could. It turns out that there was a real demand for academic events in mathematics and statistics. One of the first seminars we hosted was given by Dr. Katherine Seaton, talking about the hyperbolic surfaces she crochets. The room was full!
+
+I still can't believe how successful these sorts of events can be. The algorithm for a good event is as follows:
+
+(1) Find a speaker who can successfully explain complicated concepts without complicated language, and
+(2) Provide a room, tea and Tim Tams.
+
+The big takeaway here is that there are plenty of students out there who have an innate desire to learn about mathematics and statistics beyond what they learn for their degree. You just have to provide the opportunities and the biscuits, and they will come. That's not to say that there isn't a lot of organisation involved in finding speakers and setting up events. It's just that you're calling on <strong>an interest in mathematics and statistics that already exists in the student cohort</strong>.
+
+![Dr. Brian Davey talking about Google matrices](img/brian_google_matrices.jpg)
+
+I myself ran a TeX tutorial, following feedback that undergraduate students want to learn about mathematical typesetting earlier in their degree. We also hosted movie nights, afternoon teas, end of semester celebrations. Giving students the opportunity to meet other students is a big deal.
+
+The feedback from the orientation week stall that we hosted recently is that while social events are welcome, students are mostly interested in academic events. We handed out flyers to our first event this year - our department's annual <strong>Pi Day</strong> celebration on March 14th. We signed up new members and encouraged them to join our Facebook group. I doubt the society will have any trouble at all continuing into 2016.
+
+The new academic year has started, and this week we'll be hosting our AGM and re-electing all the positions. I'm at the end of my PhD, so my year just isn't predictable enough to justify putting my hand up again. But I'm grateful for the opportunity to have had a hand in establishing the society, and the response to the events has been astounding. Thank you to everyone on the committee for your part in putting everything together. Good luck to the incoming committee members, whoever you might be; you'll be doing something very good for the students of La Trobe University.
+
+***
+```{r sessioninfo}
+devtools::session_info()
+```

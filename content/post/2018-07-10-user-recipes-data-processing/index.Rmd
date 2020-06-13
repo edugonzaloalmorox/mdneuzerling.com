@@ -1,0 +1,206 @@
+---
+title: 'useR: Recipes for data processing'
+author: ''
+date: '2018-07-10'
+# weight: 1
+slug: user-recipes-for-data-processing
+categories: []
+tags: [R, conference]
+images: ["/img/useR/tutorial_two.png"]
+featuredalt: "useR2018 Tutorial Two"
+output: hugodown::md_document
+---
+
+These are my notes for the tutorial given by 
+[Max Kuhn](https://twitter.com/topepos) on the afternoon of the first day of the
+UseR 2018 conference. 
+
+Full confession here: I was having trouble deciding between this tutorial 
+and another one, and eventually decided on the other one. But then I 
+accidentally came to the wrong room and I took it as a sign that it was time 
+to learn more about preprocessing.
+
+Also, the `recipes` package is *adorable*.
+
+```{r echo = FALSE}
+blogdown::shortcode('tweet', '1016541132057075712')
+```
+
+I'm going to follow along with 
+[Max's slides](https://github.com/topepo/user2018), making some comments along 
+the way.
+
+Required packages:
+
+```{r install_packages, eval = FALSE}
+install.packages(c("AmesHousing", "broom", "kknn", "recipes", "rsample",
+                   "tidyverse", "yardstick", "caret"))
+```
+
+```{r load_packages, include = FALSE, cache = FALSE}
+library(tidyverse)
+library(ggplot2)
+library(rsample)
+library(recipes)
+library(caret)
+```
+
+The data set we'll use is the AMES IA housing data. This includes sale 
+price (our target) along with 81 predictors, such as location, house 
+components (eg. swimming pool), number of bedrooms, and so on. The raw data can
+be found at [https://ww2.amstat.org/publications/jse/v19n3/decock/AmesHousing.txt](https://ww2.amstat.org/publications/jse/v19n3/decock/AmesHousing.txt) 
+but we will be using the processed version found in the `AmesHousing` package.
+
+## Reasons for modifying the data
+
+Sometimes you need to *do stuff* to your data before you can use it. 
+Moreover, you're often dealing with data that's split into train/test sets. In 
+this case you need to work out what to do with your data based solely on the 
+training set and then apply that---without changing your method---to the test 
+set. If you're dealing with $K$-fold cross-validation, then you've got $K$ 
+training sets and $K$ test sets, and so you need to repeat this $K$ times.
+
+A good example is missing value imputation, where you have some missing data in
+your train/test sets and you need to fill them in via some imputation method.
+I'm no expert on the topic (but I hope to be after the missing value imputation
+tutorial tomorrow!) but I've seen this done wrong before in StackExchange 
+answers and in Kaggle solutions: the imputation is done *before* the data is
+split into train/test. This is called *data leakage*, and models assessed using
+the test set will appear more accurate than they are, because they've already
+had a sneak preview of the data.
+
+So the mindset is clear: don't touch the test set until the last possible 
+moment. The `recipes` package follows this mindset. First you create a 
+`recipe`, which is a blueprint for how you will process your data. At this 
+point, no data has been modified. Then you `prep` the recipe using your
+training set, which is where the actual processing is defined and all the 
+parameters worked out. Finally, you can `bake` the training set, test set, or 
+any other data set with similar columns, and in this step the actual 
+modification takes place.
+
+Missing value **imputation** isn't the only reason to process data, though.
+Processing can involve:
+
+* **Centering** and **scaling** the predictors. Some models (K-NN, SBMs, PLS, 
+neural networks) require that the predictor variables have the same units. 
+* Applying **filters** or **PCA signal extraction** to deal with correlation 
+between predictors.
+* **Encoding data**, such as turning factors into Boolean dummy variables, or
+turning dates into days of the week.
+* Developing new features (ie. **feature engineering**).
+
+## The `ames` data
+
+We load the data with the `make_ames` function from the `AmesHousing` package.
+
+```{r ames_load, cache = FALSE}
+ames <- AmesHousing::make_ames()
+ames %>% str
+```
+
+Now we will split the data into test and train. We'll reserve 25% of of the 
+data for testing.
+
+```{r ames_split, message = FALSE, warning = FALSE, cache = FALSE}
+library(rsample)
+set.seed(4595)
+data_split <- initial_split(ames, strata = "Sale_Price", p = 0.75)
+ames_train <- training(data_split)
+ames_test <- testing(data_split)
+```
+
+## A simple log-transform
+
+The first of Max's examples is a really simple log transform of `Sale_Price`.
+Suppose we use the formula `log10(Sale_Price) ~ Longitude + Latitude`. 
+The steps are:
+
+1. Assign `Sale_Price` to the outcome.
+1. Assign `Longitude` and `Latittude` as predictors.
+1. Log transform the outcome.
+
+The way to define this in `recipes` is as follows:
+
+```{r recipes_max_example, eval = FALSE}
+mod_rec <- recipe(Sale_Price ~ Longitude + Latitude, data = ames_train) %>% 
+    step_log(Sale_Price, base = 10)
+```
+
+## Infrequently occurring levels
+
+We usually encode factors as Boolean dummy variables, with R often taking care 
+of this in the background. If there are `C` levels of the factor, only `C - 1` 
+dummy variables are required. But what if you have very few values for a 
+particular level? For example, the `Neighborhood` predictor in our `ames` data:
+
+```{r ames_locations, cache = FALSE}
+ames %>% 
+    ggplot(aes(x = Neighborhood)) +
+    geom_bar(fill = "#6d1e3b", colour = "white") + # I don't like the default grey
+    coord_flip()
+```
+
+In fact, there's only one data point with a `Neighborhood` of Landmark. This is
+called a "zero-variance predictor". There are two main approaches here:
+
+1. remove any data points with infrequently occurring values, or
+2. group all of the infrequently occurring values into an "Other" level.
+
+This is a job for the `recipes` package, and Max takes us through the example.
+
+We can take care of the infrequently occurring levels here using the 
+`step_other` function. In this case, we "other" any level that occurs fewer 
+than 5% of the time. We can then create dummy variables for all factor 
+variables with `step_dummy`:
+
+```{r recipes_max_example_2, cache = FALSE}
+mod_rec <- recipe(Sale_Price ~ Longitude + Latitude + Neighborhood, 
+                  data = ames_train) %>% 
+    step_log(Sale_Price, base = 10) %>% # The log-transform from earlier
+    step_other(Neighborhood, threshold = 0.05) %>%
+    step_dummy(all_nominal())
+```
+
+## The `recipes` process
+
+Recipes work in a three-step process: `recipe` --> `prepare` --> `bake`/`juice`.
+We can think of this as: define --> estimate --> apply. `juice` only applies to
+the original data set defined in the recipe, the idea at the core of `bake` is
+that it can be applied to an *arbitrary* data set.
+
+First we `prep` the data using the recipe in Max's example:
+
+```{r recipes_max_prep, cache = FALSE}
+mod_rec_trained <- mod_rec %>% 
+    prep(training = ames_train, retain = TRUE)
+mod_rec_trained
+```
+
+We can now `bake` the recipe, applying it to the test set we defined earlier:
+
+```{r recipes_max_bake, cache = FALSE}
+ames_test_dummies <- mod_rec_trained %>% bake(new_data = ames_test)
+names(ames_test_dummies)
+```
+
+## Other uses
+
+I have to admit that the rest got away from me a little bit, because I'm not 
+overly familiar with all of the transformations/methods that were used (what 
+is a Yeo-Johnson Power Transformation?!).
+
+However, there's a tonne of cool stuff in the slides that I'll be coming back 
+to later, I'm sure. Max used `recipes` and `rsample` to:
+
+* deal with interactions between predictors,
+* apply processing to all of the folds of a 10-fold cross-validation,
+* train 10 linear models on that same 10-fold cross-validation,
+* assess and plot the performance of those linear models, and
+* train and asses 10 nearest-neighbour models on the 10-fold cross-validation.
+
+I know I'll be using this `recipes` package *a lot*.
+
+***
+```{r sessioninfo}
+devtools::session_info()
+```

@@ -1,0 +1,371 @@
+---
+title: Markdown monsters
+author: ''
+date: '2018-09-02'
+slug: markdown-monsters
+categories: []
+tags:
+  - R
+  - scraping
+images: ["/img/dice.jpg"]
+featuredalt: "dice"
+output: hugodown::md_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+knitr::opts_chunk$set(echo = TRUE)
+monster <- "name: Medusa\r\ntype: monstrosity\r\ncr: 6\r\n\r\n# Medusa \r\n_Medium monstrosity, lawful evil_\r\n\r\n**Armor Class** 15 (natural armor)    \r\n**Hit Points** 127 (17d8 + 51)    \r\n**Speed** 30 ft. \r\n\r\n| STR     | DEX     | CON     | INT     | WIS     | CHA     |\r\n|---------|---------|---------|---------|---------|---------|\r\n| 10 (+0) | 15 (+2) | 16 (+3) | 12 (+1) | 13 (+1) | 15 (+2) |\r\n\r\n**Skills** Deception +5, Insight +4, Perception +4, Stealth +5    \r\n**Senses** darkvision 60 ft., passive Perception 14    \r\n**Languages** Common    \r\n**Challenge** 6 (2,300 XP) \r\n\r\n**Petrifying Gaze.** When a creature that can see the medusa's eyes starts its turn within 30 feet of the medusa, the medusa can force it to make a DC 14 Constitution saving throw if the medusa isn't incapacitated and can see the creature. If the saving throw fails by 5 or more, the creature is instantly petrified. Otherwise, a creature that fails the save begins to turn to stone and is restrained. The restrained creature must repeat the saving throw at the end of its next turn, becoming petrified on a failure or ending the effect on a success. The petrification lasts until the creature is freed by the greater restoration spell or other magic.    \r\nUnless surprised, a creature can avert its eyes to avoid the saving throw at the start of its turn. If the creature does so, it can't see the medusa until the start of its next turn, when it can avert its eyes again. If the creature looks at the medusa in the meantime, it must immediately make the save.    \r\nIf the medusa sees itself reflected on a polished surface within 30 feet of it and in an area of bright light, the medusa is, due to its curse, affected by its own gaze. \r\n\r\n### Actions \r\n**Multiattack.** The medusa makes either three melee attacks--one with its snake hair and two with its shortsword--or two ranged attacks with its longbow.    \r\n**Snake Hair.** _Melee Weapon Attack:_ +5 to hit, reach 5 ft., one creature. _Hit:_ 4 (1d4 + 2) piercing damage plus 14 (4d6) poison damage.    \r\n**Shortsword.** _Melee Weapon Attack:_ +5 to hit, reach 5 ft., one target. _Hit:_ 5 (1d6 + 2) piercing damage.    \r\n**Longbow.** _Ranged Weapon Attack:_ +5 to hit, range 150/600 ft., one target. _Hit:_ 6 (1d8 + 2) piercing damage plus 7 (2d6) poison damage."
+```
+
+Whenever I take an interest in something I think to myself, "How can I combine this with R?"
+
+This post is the result of applying that attitude to Dungeons and Dragons.
+
+So how would I combine D&D with R? A good start would be to have a nice data set of Dungeons and Dragons monsters, with all of their statistics, abilities and attributes. One of the core D&D rule books is the [Monster Manual](http://dnd.wizards.com/products/tabletop-games/rpg-products/monster-manual). I could attempt to scrape the Monster Manual but I figured that the lovely people behind D&D wouldn't be too happy if I uploaded most of the book to GitHub!
+
+Fortunately, Wizards of the Coast have included around 300 monsters in the [Systems Reference Document](http://dnd.wizards.com/articles/features/systems-reference-document-srd) (SRD) for 5th edition D&D. This is made available under the Open Gaming License Version 1.0a.
+
+I started off trying to scrape the SRD directly, but scraping a PDF was looking to be a nightmare. Fortunately, [vitusventure had already converted the SRD to markdown documents](https://github.com/vitusventure/5thSRD) to host the content on the (rather pretty) [https://5thsrd.org/](https://5thsrd.org/). I figured it would be easier to scrape markdown files, since they  are structured but simple text. Here's an example of a monster's "stat block" written in markdown:
+
+---
+
+name: Medusa
+type: monstrosity
+cr: 6
+
+# Medusa 
+_Medium monstrosity, lawful evil_
+
+**Armor Class** 15 (natural armor)    
+**Hit Points** 127 (17d8 + 51)    
+**Speed** 30 ft. 
+
+| STR     | DEX     | CON     | INT     | WIS     | CHA     |
+|---------|---------|---------|---------|---------|---------|
+| 10 (+0) | 15 (+2) | 16 (+3) | 12 (+1) | 13 (+1) | 15 (+2) |
+
+**Skills** Deception +5, Insight +4, Perception +4, Stealth +5    
+**Senses** darkvision 60 ft., passive Perception 14    
+**Languages** Common    
+**Challenge** 6 (2,300 XP) 
+
+**Petrifying Gaze.** When a creature that can see the medusa's eyes starts its turn within 30 feet of the medusa, the medusa can force it to make a DC 14 Constitution saving throw if the medusa isn't incapacitated and can see the creature. If the saving throw fails by 5 or more, the creature is instantly petrified. Otherwise, a creature that fails the save begins to turn to stone and is restrained. The restrained creature must repeat the saving throw at the end of its next turn, becoming petrified on a failure or ending the effect on a success. The petrification lasts until the creature is freed by the greater restoration spell or other magic.    
+Unless surprised, a creature can avert its eyes to avoid the saving throw at the start of its turn. If the creature does so, it can't see the medusa until the start of its next turn, when it can avert its eyes again. If the creature looks at the medusa in the meantime, it must immediately make the save.    
+If the medusa sees itself reflected on a polished surface within 30 feet of it and in an area of bright light, the medusa is, due to its curse, affected by its own gaze. 
+
+### Actions 
+**Multiattack.** The medusa makes either three melee attacks--one with its snake hair and two with its shortsword--or two ranged attacks with its longbow.    
+**Snake Hair.** _Melee Weapon Attack:_ +5 to hit, reach 5 ft., one creature. _Hit:_ 4 (1d4 + 2) piercing damage plus 14 (4d6) poison damage.    
+**Shortsword.** _Melee Weapon Attack:_ +5 to hit, reach 5 ft., one target. _Hit:_ 5 (1d6 + 2) piercing damage.    
+**Longbow.** _Ranged Weapon Attack:_ +5 to hit, range 150/600 ft., one target. _Hit:_ 6 (1d8 + 2) piercing damage plus 7 (2d6) poison damage.
+
+---
+
+I put the scraped monsters in the SRD into the `monsters` data set and uploaded it to a quickly created `monstr` package. You can access the data set by installing the package with `devtools::install_github("mdneuzerling/monstr")`.
+
+```{r monstr_code}
+monsters <- monstr::monsters
+skimr::skim(monsters)
+```
+
+Because it's an R crime to introduce a new data set without a ggplot, here we can see the relationship between strength and constitution, faceted by monster size:
+
+```{r monster_ggplot}
+monsters %>% 
+    ggplot(aes(x = str, y = con)) + 
+    geom_point() + 
+    facet_wrap(. ~ size, nrow = 2)
+```
+
+One note before we go on: "monster" is a generic term. This data set contains bandits which, while of questionable moral character, are not necessarily monstrous. You can also find a simple frog in this data set, capable of nothing more than a ribbit. We refer to them all as "monsters", perhaps unfairly!
+
+## Scraping line-by-line
+
+Let's take the Medusa `monster` above, loaded as a single string. I'm going to make life easier for myself by separating the string into lines. At first I tried to do this myself with `strsplit`, but please take my advice: use the `stringi` package. You'll notice that I turn the resulting list into a single-column tibble. I won't lie: I find manipulating lists directly difficult, so being able to use `dplyr` verbs makes me happy. I'm also going to remove the italics (represented in markdown by underscores) since I won't need them here.
+
+```{r lines, warning = FALSE, message = FALSE}
+lines <- monster %>% 
+        stringi::stri_split_lines(omit_empty = TRUE) %>% 
+        unlist %>% 
+        as_tibble %>% # much easier to deal with than lists
+        mutate_all(trimws) %>% 
+        mutate_all(function(x) gsub("_", "", x)) # remove italics
+print(lines, n = nrow(lines))
+```
+
+## Scraping monster name, type and CR
+
+The wonderful thing about these markdown files is that they have a nifty couple of lines up the top listing the name, type and challenge rating (cr) of the monster. These are marked by headings with colons, so we'll define a function to extract the data based on that.
+
+```{r extract_from_colon_heading}
+extract_from_colon_heading <- function(lines, heading) {
+    lines %>% 
+        filter(grepl(paste0(heading, ":"), value)) %>% 
+        gsub(paste0(heading, ":"), "", .) %>% 
+        as.character %>% 
+        trimws
+}
+
+c(
+    extract_from_colon_heading(lines, "name"),
+    extract_from_colon_heading(lines, "type"),
+    extract_from_colon_heading(lines, "cr")
+)
+```
+
+I should offer some explanations for those new to D&D! The "type" of a monster is a category like beast, undead or---in the case of the Medusa---monstrosity. The challenge rating is a rough measure of difficulty. The Medusa has a challenge rating of 6, so is a suitable encounter for 4 players with characters of level 6. Characters begin at level 1 and move up to level 20 (if the campaign lasts that long).
+
+## Scraping based on bold text
+
+Most of the information we need is labelled by bold text, represented in markdown by double asterisks. We'll define three functions:
+
+1. `identify_bold_text` looks for a given `bold_text` in a string `x`, and returns a Boolean value.
+2. `strip_bold_text` removes *all* bolded text from a string `x`, and trims white space from either end of the result.
+3. `extract_from_bold_text` looks through a list of lines (like the `lines` defined above) for a particular `bold_text`. It will return all text in the string *except* the `bold_text`. This function uses the two above.
+
+```{r extract_from_bold_text}
+identify_bold_text <- function(x, bold_text) {
+    grepl(paste0("\\*\\*", bold_text, "\\*\\*"), x, ignore.case = TRUE)
+}
+
+strip_bold_text <- function(x) {
+    gsub("\\*\\*(.*?)\\*\\*", "", x, ignore.case = TRUE) %>% trimws
+}
+
+extract_from_bold_text <- function(lines, bold_text) {
+    lines %>% 
+        filter(identify_bold_text(value, bold_text)) %>% 
+        as.character %>% 
+        strip_bold_text
+}
+
+extract_from_bold_text(lines, "Languages")
+```
+
+## Scraping based on brackets
+
+Some of the data we need is found in bracketed information. The `extract_bracketed` function returns all text inside the first set of brackets found in a string `x`, or returns `NA` if no bracketed text is found.
+
+```{r extract_bracketed}
+extract_bracketed <- function(x) {
+    if (!grepl("\\(.*\\)", x)) {
+        return(NA)
+    } else {
+        gsub(".*\\((.*?)\\).*", "\\1", x)
+    }
+}
+
+lines %>% extract_from_bold_text("Armor Class") %>% extract_bracketed
+```
+
+A monster's armor class (AC) determines how hard it is to hit the creature with a weapon or certain spells. The Medusa has an AC of 15. To attack the Medusa, a player will roll a 20-sided die (d20) and add certain modifiers based on their character's skills and proficiencies. If the result is at least 15, the attack hits. The "natural armor" note means that the Medusa's armor class is provided by thickened skin or scales, and not a separate piece of armour.
+
+## Abilities
+
+Player characters and monsters in D&D have six ability scores that influence almost everything that they do: strength, dexterity, constitution, intelligence, wisdom and charisma. These abilities are represented by numeric scores that usually (but not always) fall between 10 and 20, with 10 being "average" and 20 being superb.
+
+In the markdown files, these ability scores are tables. We look for the table header and find the ability scores two rows below.
+
+```{r monster_ability}
+ability_header <- min(which(grepl("\\| STR", lines$value), arr.ind = TRUE))
+ability_text <- lines$value[ability_header + 2]
+ability_vector <- ability_text %>% strsplit("\\|") %>% unlist
+monster_ability <- readr::parse_number(ability_vector[!(ability_vector == "")])
+names(monster_ability) <- c("STR", "DEX", "CON", "INT", "WIS", "CHA")
+monster_ability    
+```
+
+## Skills
+
+Skills represent the monster's ability to perform activities. There are 18 skills, and each skill is associated with one of the 6 ability scores. 
+
+```{r skill_ability}
+skill_ability <- tribble(
+~skill, ~ability_code_upper,
+#-------|------------------
+"athletics", "STR",
+"acrobatics", "DEX",
+"sleight_of_hand", "DEX",
+"stealth", "DEX",
+"arcana", "INT",
+"history", "INT",
+"investigation", "INT",
+"nature", "INT",
+"religion", "INT",
+"animal_handling", "WIS",
+"insight", "WIS",
+"medicine", "WIS",
+"perception", "WIS",
+"survival", "WIS",
+"deception", "CHA",
+"intimidation", "CHA",
+"performance", "CHA",
+"persuasion", "CHA",
+)
+```
+
+All skills begin with a roll of a d20 for an element of chance. Modifiers, which can be negative, are then added to the result to determine how well the monster did. The Medusa has a +5 bonus to Deception, which would be added to the roll. 
+
+If a skill isn't listed in the Medusa's stat block, she can still use it. In this case, she would rely instead on her ability scores. For example, the Medusa isn't trained in acrobatics, but her high dexterity would give her a slight advantage nevertheless.
+
+Modifiers can be calculated from ability scores with a simple formula, defined below. Note that modifiers can be negative. Zombies, for example, are not known for their high intelligence, and have a history modifier of -4.
+
+```{r monster_modifiers}
+modifier <- function(x) {
+    floor((x - 10) / 2)
+}
+
+monster_modifiers <- monster_ability %>% 
+    as.list %>% # preserves list names as column names
+    as_tibble %>% 
+    mutate_all(modifier) %>% # convert raw ability to modifiers
+    gather(key = ability_code_upper, value = modifier) # convert to long
+monster_modifiers
+```
+
+We're going to list every skill modifier for each monster. We start with the `base_skills`, determined solely by the monster's ability scores.
+
+```{r base_skills}
+base_skills <- skill_ability %>% 
+    left_join(monster_modifiers, by = "ability_code_upper") %>% 
+    select(skill, modifier)
+head(base_skills, 6)
+```
+
+Now we find the `listed_skills`, which are those explicitly provided in the markdown. We use the `extract_from_bold_text` function, and split the resulting line along the commas into a vector. The words in an element name the skill, while the number gives the modifier.
+
+This chain of piped functions has a peculiar `unlist %>% as.list`, which seems to be necessary to preserve the vector names. I'd love to do without this code, since it seems very ugly!
+
+```{r listed_skills}
+listed_skills <- lines %>% 
+    extract_from_bold_text("Skills") %>% 
+    strsplit(", ") %>% 
+        unlist %>%  
+        lapply(function(x) {
+            skill_name <- word(x)
+            skill_modifier <- c(readr::parse_number(x))
+            names(skill_modifier) <- tolower(skill_name)
+            skill_modifier
+        }) %>% 
+        unlist %>% # This is 
+        as.list %>% # so weird
+        as_tibble %>% 
+        gather(key = skill, value = modifier) %>% 
+        mutate(skill = gsub(" ", "_", skill)) # keep naming conventions (underscores)
+listed_skills
+```
+
+Finally, we combine `listed_skills` and `base_skills`, allowing listed skills to override base skills.
+```{r monster_skills}
+monster_skills <- if (length(listed_skills) == 0) {
+    base_skills
+} else {
+    listed_skills %>% rbind(
+        anti_join(base_skills, listed_skills, by = "skill")
+    )
+}
+monster_skills <- monster_skills[match(base_skills$skill, monster_skills$skill),] # maintain skill order
+head(monster_skills, 6)
+```
+
+## Monster actions
+
+Actions are are a tough one. Take a look at the last 5 lines of the markdown:
+
+```{r actions_raw}
+tail(lines, 5)
+```
+
+We're going to look for an actions h3 heading (three hashes) "Actions". The lines that correspond to actions begin after this `Actions` subheading. The last action is determined by finding either:
+
+1. the line before the next h3 heading or, failing that,
+2. the last line.
+
+We then have a list of lines that correspond to monster actions. We're going to turn these lines into a named vector, in which the name of the action (taken from the bold text) corresponds to the action text. 
+
+```{r monster_actions}
+header_rows <- which(grepl("###", lines$value), arr.ind = TRUE)
+    actions_header_row <- which(lines == "### Actions", arr.ind = TRUE)[,"row"]
+    if (length(actions_header_row) == 0) { # This monster has no actions
+        monster_actions <- NA
+    } else {
+        if (max(header_rows) == actions_header_row) {
+            last_action = nrow(lines) # in this case, the actions are the last lines
+        } else {
+            last_action <-  min(header_rows[header_rows > actions_header_row]) - 1 # the row before the heading that comes after ### Actions
+        }
+        action_rows <-  seq(actions_header_row + 1, last_action)
+        monster_actions <- lines$value[action_rows]
+        monster_actions <- monster_actions %>% purrr::map(function(x) {
+            action_name <- gsub(".*\\*\\*(.*?)\\.\\*\\*.*", "\\1", x)
+            action <- x %>% strip_bold_text %>% trimws
+            names(action) <- action_name
+            action
+        }) %>% purrr::reduce(c)
+    }
+monster_actions
+```
+
+## Putting it all together
+
+We can now put everything together into a single-row tibble:
+
+```{r combining_stats}
+tibble(
+    name = lines %>% extract_from_colon_heading("name"),
+    type = lines %>% extract_from_colon_heading("type"),
+    cr = lines %>% extract_from_colon_heading("cr") %>% as.numeric,
+    xp = lines %>% extract_from_bold_text("challenge") %>% extract_bracketed %>% readr::parse_number(),
+    ac = lines %>% extract_from_bold_text("Armor Class") %>% readr::parse_number(),
+    ac_note = lines %>% extract_from_bold_text("Armor Class") %>% extract_bracketed,
+    hp_avg = lines %>% extract_from_bold_text("Hit Points") %>% readr::parse_number(),
+    hp = lines %>% extract_from_bold_text("Hit Points") %>% extract_bracketed,
+    str = monster_ability["STR"],
+    dex = monster_ability["DEX"],
+    con = monster_ability["CON"],
+    int = monster_ability["INT"],
+    wis = monster_ability["WIS"],
+    cha = monster_ability["CHA"],
+    senses = lines %>% extract_from_bold_text("Senses"),
+    languages = lines %>% extract_from_bold_text("Languages"),
+    speed = lines %>% extract_from_bold_text("Speed"),
+    actions = monster_actions %>% list
+    ) %>% 
+    cbind(spread(monster_skills, skill, modifier)) %>% 
+    as_tibble
+```
+
+There are a few more fields that I haven't covered here (size, alignment and description, for example). I've put the full version of the `parse_monster.R` script in a [gist](https://gist.github.com/mdneuzerling/1a70a2da97300c478186aba226053595).
+
+Of course, this is how to parse just one monster. Fortunately, the `purrr` package exists. Here's how to scrape every monster:
+
+1. Clone [vitusventure's 5th edition SRD repository](https://github.com/vitusventure/5thSRD)
+1. Set the `/docs/gamemaster_rules/monsters` directory to a variable `monster_dir`
+1. Run the following code:
+
+```{r parse_monster_purrr, eval = FALSE}
+monsters <- list.files(monster_dir, full.names = TRUE) %>% 
+    purrr::map(function(x) readChar(x, file.info(x)$size)) %>% # read files as strings
+    purrr::map(parse_monster) %>% 
+    purrr::reduce(rbind)
+```
+
+## What's next
+
+A few things are missing here:
+
+* Damage/condition immunities and resistances are not being scraped.
+* Monster traits, such as the ability to breathe underwater, are not being scraped. I think this is a matter of finding any bold heading that isn't "standard" and treating it as a trait.
+* Some monsters have complicated armor classes. For example, the werewolf has an AC of "11 in humanoid form, 12 (natural armor) in wolf or hybrid form". This doesn't fit the template of `ac` and `ac_note`.
+
+I'd like to incorporate the spells in the SRD, as well as some basic mechanics. Imagine being able to generate an encounter in R according to a specific party level!
+
+## Sources
+
+The Medusa and all Dungeons and Dragons 5th edition mechanics are available in the [Systems Reference Document under the Open Gaming License Version 1.0a](https://media.wizards.com/2016/downloads/DND/SRD-OGL_V5.1.pdf). The `monsters` data set in the `monstr` package is available under the same license.
+
+***
+```{r sessioninfo}
+devtools::session_info()
+```

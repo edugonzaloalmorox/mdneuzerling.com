@@ -1,0 +1,300 @@
+---
+title: 'useR: Missing values imputation'
+author: ''
+slug: 'user-missing-values-imputation'
+date: '2018-07-11'
+categories: []
+tags: [R, conference]
+images: ["/img/useR/tutorial_three.png"]
+featuredalt: "useR2018 Tutorial Three"
+output: hugodown::hugo_document
+---
+
+These are my notes for the third and final tutorial of useR2018, and the 
+tutorial I was looking forward to the most. I *struggle* with missing value 
+imputation. It's one of those things which I kind of get the theory of, but
+fall over when trying to *do*. So I was keen to hear
+[Julie Joss](https://twitter.com/juliejossestat) and 
+[Nick Tierney](https://twitter.com/nj_tierney) talk about their techniques and
+associated R packages.
+
+```{r echo = FALSE}
+blogdown::shortcode('tweet', '1015223952594128897')
+```
+
+I ran into a wall pretty early on here in that I wasn't very comfortable with 
+Principal Component Analysis (PCA). I took the opportunity to learn a bit more
+about this common technique, and try to understand the intuition behind it.
+
+The data and slides for Julie's and Nick's tutorial are available on 
+[Nick's GitHub](https://github.com/njtierney/user2018-missing-data-tutorial).
+
+Required packages:
+
+```{r install_packages, eval = FALSE}
+install.packages(c("tidyverse", "ggplot2", "naniar", "visdat", "missMDA"))
+```
+
+```{r load_packages, include = FALSE}
+library(tidyverse)
+library(ggplot2)
+library(naniar)
+library(visdat)
+library(missMDA)
+```
+
+
+## `Ozone` data set
+
+The data in use today is the Ozone data set from Airbreizh, a French association
+that monitors air quality. We're only going to focus on the quantitative 
+variables here, so we will drop the `WindDirection` variable.
+
+```{r load_ozone, warning = FALSE}
+ozone <- read_csv("ozoneNA.csv") %>% 
+    select(-X1, -WindDirection) # unnecessary row index
+```
+
+## Patterns of missing data
+
+The easiest way to deal with missing data is to delete it. But this ignores any
+pattern in the missing data, as well as any mechanism that leads to missing 
+values. Some data sets can also contain a majority of values that have at least
+one missing value, and so deleting missing values would delete most of the data!
+
+Missing values occur in three main patterns based on their relationship with
+the observed and even the unobserved variables of the data:
+
+* Missing Completely at Random (**MCAR**): probability of data being missing is
+independent of the observed and unobserved variables.
+* Missing at Random (**MAR**): probability is not independent of the observed
+values (ie. is not random) but the observed variables do not fully account for
+the pattern. In this case, there may be unobserved variables affecting the
+probability that the data will be missing.
+* Missing not at random (**MNAR**): probability of data being missing depends 
+on the observed values of the data.
+
+## Visualising missing data
+
+*Multiple correspondence analysis* visualises data in such a way that 
+relationships between missing values are often made apparent. One implementation
+of this is the `naniar` package:
+
+```{r missing_naniar}
+vis_miss(ozone)
+```
+
+We can repeat the visualisation with an option to `cluster` the missing values,
+making it easier to spot patterns, if any.
+
+```{r missing_naniar_cluster}
+vis_miss(ozone, cluster = TRUE)
+```
+
+## Dealing with missing values
+
+Suppose we *don't* want to delete our missing data and pretend that everything 
+is fine. Then we might look to *impute* the missing values. That is to say, we
+might want to look at the data we do have to determine what the missing values
+might have been.
+
+One of the easiest methods of imputation is that of *mean imputation*. In this
+case, we replace all of the missing values by the mean of the present values of
+the given variable.
+
+We could also define a model on the present values of the data to predict what
+the missing value might have been. A simple linear regression might suffice.
+
+A more sophisticated method involves the use of Principal Component Analysis.
+
+## A refresher on PCA 
+
+I don't understand Principal Component Analysis (PCA). Believe me, I've tried.
+
+The goal of PCA is to find the subspace that best represents the data. The 
+outcome of PCA is a set of uncorrelated variables called *principal 
+components*.
+
+[This is a wonderful (but long) article on PCA](http://www.cs.otago.ac.nz/cosc453/student_tutorials/principal_components.pdf) (pdf). 
+It's gentle without being patronising. I'll highlight some points in the
+article here, but it's well worth finding the time to read the article in full.
+
+First of all, recall the definition of an *eigenvector*. You probably 
+encountered this in your first or second year of university, and then promptly 
+forgot it. In the example below, the column vector $(6, 4)^T$ is an eigenvector 
+of the square matrix, because the result of the matrix multiplication is a scale 
+multiple of $(6, 4)^T$. In other words, the square matrix makes the eigenvector 
+*bigger*, but it doesn't change its *direction*. The scalar multiple is $4$, and 
+that's the *eigenvalue* associated with the eigenvector.
+
+$$
+\left(\begin{array}{cc} 
+2 & 3 \\
+2 & 1
+\end{array}\right) \times
+\left(\begin{array}{c} 
+6 \\
+4
+\end{array}\right) = 
+\left(\begin{array}{c} 
+24 \\
+16
+\end{array}\right) = 
+4 \left(\begin{array}{c} 
+6 \\
+4
+\end{array}\right)
+$$ 
+But how does this relate to stats? Well a data set gives rise to a *covariance
+matrix*, in which the $ij$th cell of the matrix is the covariance between the 
+$i$th variable and the $j$th variable (the variance of each variable sits along
+the diagonal). This is a square matrix, so we can find some eigenvectors. 
+
+I don't remember a whole lot of the linear algebra I learnt a long time ago, so
+I had to be reminded of two quick theorems in play here. A covariance matrix is
+symmetric, so we can make use of the following:
+
+* Eigenvectors of real symmetric matrices are real
+* Eigenvectors of real symmetric matrices are orthogonal
+
+```{r echo = FALSE}
+blogdown::shortcode('tweet', '997147577173925888')
+```
+
+Let's go through
+an example. Take the classic `mtcars` data set, and draw a scatterplot between 
+`wt` (weight) and `mpg` (miles per gallon). We're going to work on data that's
+been centered and rescaled so as to make the eigenvectors look right, as well
+as for other reasons that will become apparent soon.
+
+```{r mtcars}
+mtcars_scaled <- mtcars %>% 
+    select(wt, mpg) %>% 
+    mutate_all(scale)
+mtcars_scaled %>% ggplot(aes(x = wt, y = mpg)) + 
+    geom_point() + 
+    coord_fixed() # makes the plot square
+```
+
+Let's calculate the PCA eigenvectors. These are eigenvectors of the covariance 
+matrix. Because we have two variables we have two eigenvectors (another property
+of symmetric matrices), which we'll call `PC1` and `PC2`. You don't need a 
+install a package to calculate these, as we can use the preinstalled `prcomp` 
+function.
+
+```{r mtcars_prcomp}
+PC <- prcomp(~ wt + mpg, data = mtcars_scaled)
+PC
+```
+
+```{r mtcars_pc}
+PC1 <- PC$rotation[,1]
+PC2 <- PC$rotation[,2]
+
+mtcars_scaled %>% ggplot(aes(x = wt, y = mpg)) + 
+    geom_point() +
+    geom_segment(aes(x = 0, xend = PC1[["wt"]], y = 0, yend = PC1[["mpg"]]), arrow = arrow(length = unit(0.5, "cm")), col = "red") + 
+    geom_segment(aes(x = 0, xend = PC2[["wt"]], y = 0, yend = PC2[["mpg"]]), arrow = arrow(length = unit(0.5, "cm")), col = "red") + 
+    coord_fixed() # makes the plot square
+```
+
+Look at those eigenvectors! The eigenvectors used in PCA are always normalised, 
+so that the magnitude of the vectors are all $1$. That is, we have some 
+mutually orthogonal unit vectors...it's a **change of basis**! Any point in the 
+data set can be described by the original $x$ and $y$ axes, but it can also be
+described by a linear combination of our new PC eigenvectors!
+
+So we haven't done anything to the data yet, apart from some basic scaling and
+centering. But every eigenvector has an associated eigenvalue. In this case, the
+higher the eigenvalue, the more the eigenvector is stretched by the (modified)
+covariance matrix. That is to say, the higher the eigenvalue, **the more variance
+explained by the eigenvector**. This is why we had to rescale the data so that 
+each variable starts with a variance of $1$---if we didn't, the variables with 
+higher variance, such as `mpg`, would appear artifically more important.
+
+```{r mtcars_PC_summary}
+summary(PC)
+```
+
+PCA's primary use is for dimension reduction. You can use the ranking of the
+eigenvalues to determine what eigenvectors contribute the most to the variance 
+of the data. You'll drop a dimension by losing some of your information, but it
+will be the least valuable information.
+
+## PCA imputation
+
+At this point I had re-learnt enough PCA to get by, Time to revisit the matter
+of missing data!
+
+Here's how this works. First we need to choose a number of dimensions $S$ to
+keep at each step (more about this later).
+
+1. Start with mean imputation, which assigns the variable mean to every missing
+value.
+1. Apply PCA and keep $S$ dimensions.
+1. Re-impute the missing values with the new mean.
+1. Repeat steps 2 and 3 until the values converge.
+
+The `missMDA` package handles this for us. First we need to work out how many
+dimensions we want to keep when doing our PCA. The `missMDA` package contains
+an `estim_ncpPCA` function that helps us determine the value of $S$ that 
+minimises the **mean squared error of prediction (MSEP)**. 
+
+```{r ozone_PCA_dim, results = FALSE}
+nb <- estim_ncpPCA(ozone, method.cv = "Kfold")
+```
+
+```{r ozone_PCA_plot}
+ggplot(data = NULL, aes(x = 0:5, y = nb$criterion)) + 
+    geom_point() + 
+    geom_line() + 
+    xlab("nb dim") + 
+    ylab("MSEP")
+```
+
+We can see that the MSEP is minimised when the $S$ is `r nb$ncp`, a 
+number we can also access with `nb$ncp`. We can now perform the actual PCA
+imputation. This doesn't work with tibbles, so I convert the data to a data
+frame before piping it into the impute function.
+
+```{r ozone_PCA}
+ozone_comp <- ozone %>% as.data.frame %>% imputePCA(ncp = nb$ncp)
+```
+
+Now let's compare the original data to the complete data. The `imputePCA` 
+function returns a list, which we convert to a tibble. There are also some
+new columns containing fitted values, which we'll set aside for an easier
+comparison. 
+
+We'll also remove the `completedObs.` prefix of the variable
+names. The regex pattern used here, `".*(?<=\\.)"`, matches everything up to
+and including the last dot in the column names. I use this pattern * a lot*. 
+Note that you'll need `perl = TRUE` to use the lookahead.
+
+```{r ozone_comparison}
+ozone %>% head
+ozone_comp %>% 
+    as.data.frame %>% # seems to need this intermediate step?
+    as_tibble %>% 
+    select(contains("complete")) %>% 
+    rename_all(gsub, pattern = ".*(?<=\\.)", replacement = '', perl = TRUE) %>%  
+    head
+```
+
+## I missed a lot
+
+Because I was catching up on PCA, I missed a fair chunk of the tutorial. In
+particular, I missed a whole discussion on evaluating how well the missing
+data was imputed. I also missed some stuff on random forests, and I love
+random forests!
+
+But I learnt a tonne, and I'm grateful for the opportunity to dig into two 
+topics I usually struggle with: PCA and missing value imputation. Thank you 
+to Julie and Nick for the tutorial.
+
+Now, onward to the official launch of the #useR2018!
+
+***
+```{r sessioninfo}
+devtools::session_info()
+```

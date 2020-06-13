@@ -1,0 +1,63 @@
+---
+title: Using R to send an Outlook email with an inline image
+author: ~
+date: '2017-03-19'
+slug: using-r-to-send-an-outlook-email-with-an-inline-image
+categories: []
+tags: [R]
+description: ''
+images: ["/img/sending_an_email_with_rdcomclient.png"]
+featuredpath: 'img'
+output: hugodown::md_document
+---
+
+If you work in a corporate environment, there's a good chance you're using 
+Microsoft Office. I wanted to set up a way to email tables and plots from R 
+using Outlook. Sending an email is simple enough with the <a href="http://www.omegahat.net/RDCOMClient/">RDCOMClient</a> library, but 
+inserting a plot inline—rather than as an attachment—took a little bit of 
+working out. I'm sharing my code here in case anyone else wants to do something 
+similar. The trick is to save your plot as an image with a temporary file, 
+attach it to the email, and then insert it inline using a cid (Content-ID).
+
+```{r attachment, eval = FALSE}
+library(ggplot2)
+
+# Create a simple scatterplot with ggplo2
+SimplePlot <- ggplot(mtcars, aes(x=wt, y=mpg)) + geom_point()
+# Create a temporary file path for the image that we will attach to our email
+SimplePlot.file <- tempfile(fileext = ".png")
+# Save the ggplot we just created as an image with the temporary file path
+ggsave(plot = SimplePlot, file = SimplePlot.file,
+        device = "png", width = 4, height = 4)
+
+# Create an Outlook object, a new email, and set the parameters.
+Outlook <- RDCOMClient::COMCreate("Outlook.Application")
+Email <- Outlook$CreateItem(0)
+Email[["To"]] <- "johnsmith@example.com"
+Email[["subject"]] <- "A simple scatterplot"
+# Some text before we insert our plot
+Body <- "<p>Your scatterplot is here:</p>"
+
+# First add the temporary file as an attachment.
+Email[["Attachments"]]$Add(SimplePlot.file)
+# Refer to the attachment with a cid
+# "basename" returns the file name without the directory.
+SimplePlot.inline <- paste0( "<img src='cid:",
+        basename(SimplePlot.file),
+        "' width = '400' height = '400'>")
+# Put the text and plot together in the body of the email.
+Email[["HTMLBody"]] <- paste0(Body, SimplePlot.inline)
+
+# Either display the email in Outlook or send it straight away.
+# Comment out either line.
+Email$Display()
+#Email$Send()
+
+# Delete the temporary file used to attach images.
+unlink(SimplePlot.file)
+```
+
+***
+```{r sessioninfo}
+devtools::session_info()
+```

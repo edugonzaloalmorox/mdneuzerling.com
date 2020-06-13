@@ -1,0 +1,1106 @@
+---
+title: "Exploration of sales data"
+author: "Murray **David** Neuzerling"
+date: "June 4th, 2018"
+output:   
+    html_document:
+        toc: true
+---
+
+```{r setup_hidden, include=FALSE}
+# knitr::opts_chunk$set(echo = TRUE, cache = TRUE, out.width="100%")
+options(scipen=999)
+set.seed(42275)
+```
+
+## Outcome
+
+The desired outcome is guided by the following comment, provided by the person
+who uploaded this data to Kaggle:
+
+> ...we are trying to determine which products we should continue to sell, and 
+which products to remove from our inventory.
+
+The poster discusses their motivations for uploading the data set:
+
+> We suspect that data science applied to the set...can help us generate a 
+value (i.e., probability score) for each product, that can be used as the main determinant evaluating the inventory. Each row in the file represents one 
+product.
+
+Paraphrasing, the goal is to answer the following question: what is the value 
+of an item, identified by an SKU, being in inventory? 
+This ultimately relies on three components:
+
+* the probability that an item will sell in the near-future,
+* the value of that sale, and
+* the cost of keeping an item in stock.
+
+The ideal formula would be something like:
+$$value = P(sale) * profit\_of\_sale - cost\_of\_warehousing.$$
+The decision of which items to no longer stock can then be made by continuing to
+warehouse only those with a positive value or, alternatively, by dropping all
+items in a bottom portion of the stock, ranked by value.
+
+The cost and value components are a mystery. We don't have access to the cost of
+warehousing, so we assume that it is equal for every item, and ignore it in the
+value calculations. We don't have access to the *profit* involved in a sale, but
+we can substitute it with one of the three price variables. This assumes a 
+similar profit margin for each item, but it is the best we can do with so many
+unknowns.
+
+Because the historical data is taken over a six-month period, we are forced to
+use this interval in our calculations. That is, the $P(sale)$ in the above 
+formula will be calculated as the probability of a sale over a six-month period. 
+
+We could model the number of sales as a discrete variable or a continuous 
+variable, requiring a categorisation or regression model, respectively. Both 
+options should be explored, with the decision based on what will most accurately
+define the solution above.
+
+### Questions
+
+* What currently determines the stock levels of an item?
+* What is the `strength_factor` of a item?
+* What can we say about the `marketing_type` and its impact on sales?
+* What is the relevance to sales of an item being recently released?
+* What is the relevance to sales of an item being a new release?
+
+### Concerns
+
+* Many variables are undefined, and it is not clear how we should interpret 
+them:
+    * `strength_factor`
+    * `release_number` and, consequently, `new_release_flag`
+    * The three pricing variables: `price_reg`, `low_user_price` and `low_net_price`
+* Six months history is very limited, especially given that the company admits
+that "many of the products only have a single sale in the course of a year". 
+Moreover, this brief period ignores any seasonal trends. Do these items sell
+more over the Christmas period and, if so, do the past 6 months include 
+December? Is the company selling Winter jackets or swimwear?
+* There is a lack of information about the actual products themselves, likely
+due to that data being considered commercially sensitive. Even a rough 
+categorisation of product type would be helpful.
+* We don't know how the `item_count` variable, presumably a stock level, is
+defined. There's almost certainly some sort of business process behind this
+decision, even if an informal one. It's possible that previous sales prompt
+greater stock numbers, and so we run the risk of modelling sales figures on a
+proxy of sales figures.
+
+## Initial impressions
+
+In the setup stage, we're going to load some essential packages, along with the 
+data, which is saved as `sales.csv`. 
+We're also going to rename the variables to match the tidyverse style, with 
+lower-case letters and words separated by underscores. Finally, we convert the 
+flag columns to factors.
+
+```{r data_load, message=FALSE, warning=FALSE, result=FALSE, cache=FALSE}
+library(tidyverse)
+library(purrr)
+library(kableExtra) # for modifying table width
+library(randomForest)
+library(e1071) # for svm models
+
+sales <- "sales.csv" %>% 
+    read.csv %>% # for some reason, readr's read_csv throws many errors
+    as_tibble %>%     
+    rename(
+        order = Order, 
+        file_type = File_Type, 
+        SKU_number = SKU_number,
+        sold_flag = SoldFlag, 
+        sold_count = SoldCount, 
+        marketing_type = MarketingType, 
+        release_number = ReleaseNumber, 
+        new_release_flag = New_Release_Flag, 
+        strength_factor = StrengthFactor, 
+        price_reg = PriceReg, 
+        release_year = ReleaseYear, 
+        item_count = ItemCount, 
+        low_user_price = LowUserPrice, 
+        low_net_price = LowNetPrice
+    ) %>% 
+    mutate_at(
+        vars(contains("flag")),
+        as.factor
+    )
+
+sales %>% 
+    count(file_type) %>% 
+    knitr::kable(format = "html") %>% 
+    kable_styling(full_width = F)
+```
+
+I'm a big fan of the `visdat` package for looking at data for the first time. 
+It gives variable types along with a visualisation of missing data.
+
+```{r vis_dat, cache=TRUE}
+sales %>% sample_n(10000) %>% arrange(order) %>% visdat::vis_dat()
+```
+
+The missing data is entirely within the `sold_flag` and `sold_count` variables.
+We know the data is split into an historical observational period as well as
+active inventory, so it makes sense that we would only have sales data for
+historical observations. We confirm this with the `naniar` package:
+
+```{r missing_counts, out.width="50%"}
+sales %>% 
+    select(file_type, sold_count, sold_flag) %>%
+    group_by(file_type) %>% 
+    naniar::miss_var_summary() %>% 
+    knitr::kable(format = "html") %>% 
+    kable_styling(full_width = F)
+```
+
+Given that we can only model on historical data, we now split the sales data 
+into two data sets: `historical` and `active`. We remove the `sold_flag` and
+`sold_count` variables for the `active` tibble, since it serves no purpose.
+
+```{r data_split}
+historical <- sales  %>% 
+    filter(file_type == "Historical")
+active <- sales %>% 
+    select(-one_of("sold_flag", "sold_count")) %>%
+    filter(file_type == "Active")
+```
+
+This has the benefit of giving us making the data unique along SKU in each 
+data set. For example, there are `r nrow(historical)` distinct SKUs in the 
+`historical` data set, which has `r nrow(historical)` rows.
+
+The poster of the data mentioned that sales are rare:
+
+> It is important to note that we have MANY products in our inventory, and very 
+few of them tend to sell (only about 10% sell each year) and many of the 
+products only have a single sale in the course of a year.
+
+Let's verify this claim with a histogram:
+
+```{r sales_histogram}
+historical %>% 
+    filter(sold_count <= 5) %>% 
+    mutate(sold_count = sold_count %>% as.factor) %>% # makes graph look better
+    ggplot(aes(x = sold_count)) + 
+        geom_bar(na.rm = TRUE, fill = "#00BFC4") 
+```
+
+As expected, most of the items did not sell in the observation period, with only
+`r round(100 * mean(as.integer(historical[["sold_flag"]]) - 1))`% of items
+experiencing a sale. This data imbalance will cause issues in modelling, as we
+will later see.
+
+### Data quality
+
+Many issues with data quality could be resolved or mitigated with a data
+dictionary. We can make some assumptions, such that `item_count` refers to 
+inventory levels. Other variables, like `release_number` and the related
+`new_release_flag`, are a mystery us.
+
+`r historical %>% filter(sold_count > item_count) %>% nrow` items have a 
+`sold_count` greater than the corresponding `item_count`. There are multiple 
+possible explanations for this:
+
+* the `item_count` records the inventory at the end of the recording period,
+* the stock was replenished throughout the recording period,
+* this could be bad data, or
+* there is a relationship between the `item_count` variable and the 
+`release_number` variable.
+
+To complicate things even further, 
+`r historical %>% filter(item_count == 0) %>% nrow` products have an
+`item_count` of 0.
+
+```{r large_sold_count}
+historical %>% 
+    filter(sold_count > item_count) %>% 
+    select(SKU_number, sold_count, item_count, release_number) %>% 
+    knitr::kable(format = "html") %>% 
+    kable_styling(full_width = F)
+```
+
+Moreover, the `strength_factor` of each item appears to vary between the `active`
+stock and the `historical` data sets. While we would expect the price variables
+to be time-dependent, it seems strange that the `strength_factor`---presumably an
+immutable property of the item---is not fixed.
+
+To determine this we use the `sqldf` package to join the `historical` and
+`active` tibbles, finding those that match in `SKU_number` but not 
+`strength_factor`. While not as fast as `dplyr`'s join verbs, it allows us to
+join on predicates rather than just columns.
+
+```{r strength_mismatches, warning = FALSE}
+strength_factor_mismatches <- sqldf::sqldf(
+    "
+    SELECT       ACTIVE.SKU_number
+                ,HISTORICAL.strength_factor AS Historicalstrength_factor
+                ,ACTIVE.strength_factor AS Activestrength_factor
+    FROM        historical AS HISTORICAL
+    INNER JOIN  active AS ACTIVE
+        ON      HISTORICAL.SKU_number = ACTIVE.SKU_number
+        AND     HISTORICAL.strength_factor <> ACTIVE.strength_factor
+    "
+)
+
+strength_factor_mismatches %>% nrow
+```
+
+The `release_year` variable is particularly strange. According to Kaggle, this 
+data was uploaded in December of 2016, yet there are 
+`active %>% filter(release_year == 2017) %>% nrow` products in inventory with a
+`release_year` of 2017, and `active %>% filter(release_year == 2017) %>% nrow`
+with a release year of 2018.
+
+## Variable exploration
+
+We will now investigate each of the variables and their impact on the target
+variables. We will focus predominately on the `sold_flag` for now to simplify 
+our analysis.
+
+### Numerical variables
+
+We're going to consider `release_year` as a numerical variable. We could 
+consider it as a factor, but that would make the modelling steps much more
+difficult, since there `r sales %>% distinct(release_year) %>% nrow` different
+years.
+
+While we won't explore this here, it might be easier to interpret the results of 
+any modelling if we were to transform the variable to an age, so that we track 
+how many years since each product was released. This changes the centre of the
+variable (a translation transformation), so shouldn't have any impact on model
+results, but makes for a more practical interpretation.
+
+```{r numeric_cols}
+numeric_cols <- c(
+    "release_year", "price_reg", "low_net_price", "low_user_price", 
+    "item_count", "strength_factor", "release_number"
+)
+```
+
+The `ggpairs` function from the `GGally` package replicates the `plotmatrix`
+function that once exists in `ggplot2`. It displays three pieces of
+information: correlation coefficients in the top-right triangle, 
+scatterplots in the bottom-left triangle, and histograms along the diagonal.
+
+```{r ggpairs, cache=TRUE}
+historical %>% select(numeric_cols) %>% GGally::ggpairs()
+```
+
+There is almost no correlation between any of the numerical columns in this
+data. Multicollinearity can impact the interpretability of some models such as
+logistic regressions, since it is difficult to separate the effects of 
+correlated variables.
+
+Curiously, none of the three price metrics correlate either. We will explore 
+these in more detail later.
+
+We may wish to see if certain release products released in certain years, 
+perhaps later years, are more likely to sell. However, we need to be cautious 
+about simply plotting sales against year, since we need to take into account
+how many items were released in a particular year as well. Below we plot the
+number of sales by `release_year` alongside the number of items available from
+each `release_year`:
+
+### Release year
+```{r release_year, out.width="49%", fig.show='hold'}
+x_labels <- seq(
+    min(historical$release_year),
+    max(historical$release_year),
+    by = 5
+)
+historical %>% 
+    ggplot(aes(x = release_year, y = sold_count)) + 
+        geom_bar(stat = "identity", fill = "#00BFC4") +
+        scale_x_continuous(breaks = x_labels, labels = x_labels)
+historical %>% 
+    ggplot(aes(x = release_year)) + 
+        geom_bar(, fill = "#00BFC4") +
+        scale_x_continuous(breaks = x_labels, labels = x_labels)
+```
+
+To accommodate for this, we instead consider the percentage of items sold each 
+year. We'll also limit the graph to show only the data with a `release_year` in
+or after 1990, since there is little sales data before this year.
+
+```{r release_year_normalised}
+historical %>%
+    filter(release_year >= 1990) %>% 
+    group_by(release_year) %>% 
+    summarise(percent_sold = sum(sold_count) / sum(item_count)) %>%
+    filter(!is.nan(percent_sold)) %>% # Remove division by zero errors
+    ggplot(aes(x = release_year, y = percent_sold)) + 
+        geom_bar(stat = "identity", fill = "#00BFC4") +
+        scale_x_continuous(breaks = x_labels, labels = x_labels)
+```
+
+It appears as though products released between 2010 and 2015, inclusive, are 
+more likely to sell.
+
+### Item count
+
+I'm very curious about this `item_count` variable. How are inventory levels
+currently decided by the company? Is it possible that if an item sells, more
+inventory is ordered in, and so we are potentially modelling `sold_flag` on a
+proxy of `sold_flag`? Is the `item_count` the inventory at the beginning or
+end of the observation period? Did the company restock throughout those six
+months?
+
+```{r item_count_boxplot}
+historical %>% 
+    ggplot(aes(x = sold_flag, y = item_count, fill = sold_flag)) + 
+        geom_boxplot(na.rm = TRUE) +
+        ylim(0, 50)
+```
+
+These box plots certainly show a positive relationship between `item_count`
+and `sold_flag`, but it's impossible to determine the direction of the 
+causative relationship, if there is one. That is, a higher stock level could
+cause more sales, a sale could trigger higher stock levels, or neither of 
+these could be true.
+
+### Price and marketing
+
+It's impossible to say precisely how we should interpret the three price
+variables, but we can speculate:
+
+* Net price may be the amount paid *to* the supplier
+* User price may be the price paid *by* the user (or customer)
+* Price reg (presumably regular price) is a mystery. It may be recommended 
+retail price (RRP) but
+`r historical %>% filter(low_user_price > price_reg) %>% nrow` items have a 
+higher `low_user_price` than a `price_reg`.
+
+Let's investigate the relationship between the three price variables and sales.
+For convenience, we will include the `marketing_type` variable in this 
+investigation. We change some of the labels for the factor variables to make 
+the graph easier to read, but these changes won't be preserved.
+
+```{r price_box_plots}
+historical %>% 
+    mutate(marketing_type = paste0("marketing type ", marketing_type)) %>%
+    gather(key = price_metric, value = price, contains("price")) %>% 
+    ggplot(aes(x = sold_flag, y = price, fill = sold_flag)) + 
+        geom_boxplot(na.rm = TRUE) + 
+        facet_grid(marketing_type ~ price_metric) + 
+        ylim(0, 200)
+```
+
+It appears as though the `low_user_price` is related to sales, with a higher
+price being unexectedly associated with a higher chance of sale. This effect
+seems slightly higher for marketing type "D". There is a similar effect for 
+`price_reg`, although there is almost no difference between marketing types.
+There appears to be a negligible relationship between `low_net_price` and sales.
+
+Strangely, some of the prices are set to 0:
+
+```{r zero_prices}
+historical %>% 
+    gather(key = price_metric, value = price, contains("price")) %>% 
+    filter(price == 0) %>% 
+    count(price_metric) %>% 
+    rename(items_with_zero_price = n) %>% 
+    knitr::kable(format = "html") %>% 
+    kable_styling(full_width = F)
+```
+
+Either the respective prices for these items are missing, or items were 
+legitimately sourced/sold or $0. Prices in the active inventory are a little 
+different; only `r active %>% filter(low_user_price == 0) %>% nrow` have a $0 `low_user_price`. As such, we when calculating expected value we will use 
+`low_user_price` under the assumption that the prices are legitimate.
+
+Is the zero price of an item related to its chances of selling? We'll plot, for
+each price metric, the proportion of items that have had at least one sale, 
+split by whether or not the price is 0.
+
+```{r effect_of_zero_price}
+historical %>%
+    gather(key = price_metric, value = price, contains("price")) %>% 
+    mutate(has_price = as.factor(price > 0)) %>% 
+    ggplot(aes(x = has_price, fill = sold_flag)) + 
+        geom_bar(position = "fill") + 
+        facet_grid(. ~ price_metric) +
+        ylab("proportion")
+```
+
+Sure enough, an item being free is related to its chance of selling, but not in
+the way we might think; a 0 `low_user_price` or `low_net_price` is related to 
+a higher chance of sale. The effect is not seen for `price_reg`.
+
+### Release number
+
+The `release_number` attribute doesn't appear to influence sales. It's difficult
+to even say what this means. It's related to the `new_release_flag`, which is 
+set to 1 if and only if the `release_number` is greater than 1.
+
+```{r release_number_boxplot}
+historical %>% 
+    ggplot(aes(x = sold_flag, y = release_number, fill = sold_flag)) + 
+        geom_boxplot(na.rm = TRUE) +
+        ylim(0, 10)
+```
+
+### Strength factor
+
+There does appear to be a relationship between `strength_factor` and sales, with
+weaker `strength_factors` being associated with sales.
+
+```{r strength_factor_boxplot}
+historical %>% 
+    ggplot(aes(x = sold_flag, y = strength_factor, fill = sold_flag)) + 
+        geom_boxplot(na.rm = TRUE) + 
+        ylim(0, 3000000)
+```
+
+### Categorical variables and sold_count
+
+To make the graphs look better, we temporarily consider `release_number` as
+a factor (categorical variable). Let's investigate how `item_count` and 
+`release_number` affect not the binary `sold_flag` the `sold_count`.
+
+```{r release_number_bar_graph}
+historical %>% 
+    filter(release_number <= 20) %>% 
+    mutate(release_number = release_number %>% as.factor) %>% 
+    ggplot(aes(x = release_number, fill = sold_flag)) +
+        geom_bar(position = "fill", na.rm = TRUE)
+```
+
+```{r item_count_bar_graph}
+historical %>% 
+    filter(item_count <= 20) %>% 
+    mutate(item_count = item_count %>% as.factor) %>% 
+    ggplot(aes(x = item_count, fill = sold_flag)) +
+        geom_bar(position = "fill", na.rm = TRUE) 
+```
+
+## Modelling options
+
+### A note on time investment
+
+A proper modelling approach would optimise accuracy scores by considering 
+multiple models, and within each model adjustments of parameters. We would also
+consider the effects of feature engineering---transformations of existing 
+variables and creations of new variables. 
+
+In the interests of time, we will focus our attention to only a handful of 
+models, in a somewhat arbitrary manner. We're also going to gloss over the 
+issue of dimesionality (eg. reducing the number of variables used in modelling)
+because the number of variables is initially small relative to the sample size.
+Moreover, random forests---which we will use initially---are forgiving of 
+superfluous variables.
+
+I regret the emphasis on simple accuracy rates when I should be considering 
+sensitivity and specificity, preferably with ROC curves.
+
+Our target variables will be either `sold_flag` for categorisation or 
+`sold_count` for regression. We will model on all variables except: 
+
+* `order`, which is an arbitrary index,
+* `SKU_number`, which is we take to be an arbitrary product identifier,
+* `new_release_flag`, which is defined by the value of `release_number`, and
+* `file_type`, which is redundant in the `historical` data set.
+
+### Categorisation with a random forest using stratified sampling
+
+The imbalanced nature of the data will cause issues in modelling. 
+Of the `historical` data, 
+`r round(100 * mean(as.integer(historical[["sold_flag"]]) - 1), 2)`% has a 
+`sold_flag` of 1. If we assume that nothing ever sells, then we will be correct
+`r 100 - round(100 * mean(as.integer(historical[["sold_flag"]]) - 1), 2)`% of
+the time. This "model" is very accurate, and entirely useless.
+
+One of the benefits to a bootstrapping model such as a random forest is that we
+can control the parameters of the bootstrap samples. We can stratify the sample 
+such that 50% of the items will be those with a sale, and the other 50% will be 
+without a sale. This is how we define `balanced_sample_size`.
+
+```{r random_forest_with_stratified_sampling, message=FALSE, cache=TRUE}
+balanced_sample_size <- historical %>% 
+    filter(sold_flag == 1) %>% 
+    nrow 
+
+rf_flag <- historical %>%   
+    randomForest(
+        formula = sold_flag ~ marketing_type + release_number + 
+            release_year + price_reg + low_net_price + 
+            low_user_price + item_count + strength_factor,        data = .,
+        sampsize = c(balanced_sample_size, balanced_sample_size), 
+        strata = .$sold_flag,
+        ntree = 1000 # More trees means longer training time, but no risk of overfitting
+    )
+    
+rf_flag    
+```
+
+Another benefit of a random forest is that we don't need to cross-validate or
+separate into a test/train set, since the items outside of each bootstrap 
+sample can be used as a sort of cross-validation against each tree. This is the 
+out-of-bag or OOB error. This model has an OOB error of 
+`r round(100 * rf_flag$err.rate[,1] %>% mean, 2)`, which is a good start.
+
+### Categorisation with a random forest using SMOTE
+
+Another way to deal with imbalanced data is to over-/under-sample. The `DMwR` 
+package contains the `SMOTE` algorithm, which stands for "synthetic minority
+oversampling". This algorithm will over-sample the products that have sold and
+undersample those that haven't sold, so as to mitigate the impact of the 
+imbalanced data set. The "synthetic" part of the name refers to the fact that 
+the algorithm generates new items that were not in the original data set, using 
+the nearest neighbours of data points.
+
+Because we will be training our model on a data set that includes synthetic
+values, the OOB error will be testing each decision tree against data that isn't
+in the original data set. As such, we will have to apply the `SMOTE` algorithm
+to a training data set, and test against a separate test or validation data set.
+
+When we split into train and test, we have to keep the imbalanced data in 
+mind. That is, we want some sales in our test set. We set aside 80% of
+the data with a sale and 80% of the data without a sale into our train set,
+and the rest goes into the test set.
+
+```{r split_train_test} 
+historical_train <- 
+    historical %>% filter(sold_flag == 0) %>% sample_frac(0.8) %>% 
+    rbind(
+        historical %>% filter(sold_flag == 1) %>% sample_frac(0.8)
+    )
+historical_test <- historical %>% 
+    anti_join(historical_train, by = "SKU_number")
+```
+
+We now apply the `SMOTE` algorithm to the training set.        
+
+```{r SMOTE}
+historical_SMOTE <- historical_train %>%
+    as.data.frame %>% # DMwR package doesn't work with tibbles
+    DMwR::SMOTE(
+        sold_flag ~ marketing_type + release_number + 
+            release_year + price_reg + low_net_price + 
+            low_user_price + item_count + strength_factor,
+        data = .
+    ) %>% 
+    as_tibble
+```
+
+The default under- and over-sampling settings seem to produce a roughly 
+balanced data set (4:3). We can now train another random forest on this balanced training set, and measure its accuracy against the test set.
+
+```{r random_forest_with_SMOTE, cache=TRUE}
+rf_smote_flag <- historical_SMOTE %>%   
+    randomForest(
+        formula = sold_flag ~ marketing_type + release_number + 
+            release_year + price_reg + low_net_price + 
+            low_user_price + item_count + strength_factor,
+        data = .,
+        ntree = 1000
+    )
+
+rf_smote_flag_preds <- predict(rf_smote_flag, historical_test, "response") 
+
+rf_smote_flag_cm <- rf_smote_flag_preds %>%
+    caret::confusionMatrix(historical_test$sold_flag)
+
+rf_smote_flag_cm %>% print
+```
+
+The accuracy is roughly 
+`r 100 * round(rf_smote_flag_cm$overall[["Accuracy"]], 2)`%, which is an 
+improvement over the random forest with stratified sampling. The summary 
+statistics are interesting, because we're told that the accuracy is less than 
+the no information rate (NIR). This means that if we simply assumed that no 
+item sold, we would obtain a higher accuracy, as we mentioned earlier. Of 
+course, this model wouldn't be useful at all. By sacrificicing specificity for
+sensitivity we obtain a less "accurate" model, but a more useful one.
+
+### Categorisation with logistic regression using SMOTE
+Logistic regressions are simple but generally require a bit more massaging
+than random forests. We have to worry about transformations, binning and
+capping. We will briefly investigate one as a curiousity.
+
+```{r logistic_regression}
+logistic_flag <- historical_SMOTE %>% glm(
+    formula = sold_flag ~ marketing_type + release_number + 
+        release_year + price_reg + low_net_price + 
+        low_user_price + item_count + strength_factor,
+        data = .,
+    family = binomial(link = "logit")
+)
+
+logistic_flag_cm <- logistic_flag %>% 
+    predict(historical_test, type = "response") %>% 
+    {ifelse(. > 0.5, 1, 0)} %>%
+    as.factor %>% # braces let us control where the %>% puts the argument
+    caret::confusionMatrix(historical_test$sold_flag)
+
+
+logistic_flag_cm %>% print
+```
+
+The accuracy of the model is around 
+`r round(100 * logistic_flag_cm$overall[["Accuracy"]])`%. This isn't as 
+accurate as the random forests, but given how little effort we put into
+preparing the data it's still very impressive. 
+
+### Linear regression using SMOTE
+
+We will now investigate a regression model in which we attempt to predict not 
+just whether a sale will occur, but *how* many sales will occur. That is, we
+will use `sold_count` as the target variable, instead of `sold_flag`. This
+opens the possibility of a non-integral value of sold items, which makes sense 
+when we consider that we will be calculating expected value.
+
+We'll begin with a simple linear regression. Once again we will apply the
+`SMOTE` algorithm to emphasise data with a sale, sacrificing specificity for
+sensitivity.
+
+```{r lm_SMOTE}
+lm_SMOTE_count <- historical_SMOTE %>% 
+    lm(
+    sold_count ~ marketing_type + release_number + 
+        release_year + price_reg + low_net_price + 
+        low_user_price + item_count + strength_factor,
+    data = .
+)
+
+lm_SMOTE_count_preds <- predict(lm_SMOTE_count, historical_test) 
+
+lm_SMOTE_count %>% summary
+```
+
+This linear model has an adjusted R^2 of
+`r summary(lm_SMOTE_count)$adj.r.squared`, which is not particularly 
+encouraging. When compared to the test set, the linear model has a mean squared 
+error of `r mean((historical_test$sold_count - lm_SMOTE_count_preds)^2)`. That 
+is, the prediction is out on average by about one sale.
+ 
+### Regression with support vector machines using SMOTE 
+While I don't have a thorough understanding of support vector machines, I
+believe that certain loss functions require normalisation beforehand. I've
+also heard that normalised data is faster train for SVMs. In any case, it 
+can't do any harm, so we normalise the numeric columns before we fit the
+model. We do this using the `recipes` package, which allows us to prepare 
+the normalisation steps based on the (`SMOTE`) training set, and then apply
+the results to the test set.
+
+```{r recipes, warning=FALSE, message=FALSE, cache=TRUE}
+library(recipes)
+
+columns_to_normalise <- c(
+    "price_reg", "low_net_price", "low_user_price", "strength_factor",
+    "release_year" # I'm uncertain about normalising years
+)
+
+historical_recipe <- recipe(
+    sold_count ~ marketing_type + release_number + release_year +
+        price_reg + low_net_price + low_user_price + item_count + strength_factor,
+    data = historical_SMOTE
+) %>%
+    step_center(columns_to_normalise) %>%
+    step_scale(columns_to_normalise) %>%
+    prep(training = historical)
+
+historical_SMOTE_baked <- bake(historical_recipe, newdata = historical_SMOTE)
+historical_test_baked <- bake(historical_recipe, newdata = historical_test)
+```
+
+We can now feed the normalised data into a support vector machine model.
+
+```{r svm}
+svm_count <- historical_SMOTE_baked %>% svm(
+        sold_count ~ marketing_type + release_number + release_year +
+        price_reg + low_net_price + low_user_price + item_count + strength_factor,
+    data = .
+)
+
+svm_preds <- predict(svm_count, historical_test_baked)
+
+svm_count %>% summary
+```
+
+The mean squared error for this model, when compared to the actuals of the test
+set, is `r mean((historical_test$sold_count - svm_preds)^2)`. Once again, we
+are off on average by around one sale.
+
+### Multinomial classificiation with random forests using SMOTE
+
+If regression is proving too difficult, can we attempt to model the `sold_count`
+variable as a categorical variable? Let's take the simplest multinomial model:
+a trinomial model. We will cap all `sold_count` values higher than 2 at 2, and
+attempt to predict the three outcomes.
+
+We'll be capping the synthetically balanced `SMOTE` data. This data was balanced
+along the `sold_flag` binary variable. We don't need to worry the SMOTE 
+algorithm introducing non-zero `sold_count` values when the `sold_flag` is 0; 
+because the algorithm uses a nearest-neighbours approach when balancing the 
+data along `sold_flag`, every synthetic `sold_count` will be 0 when `sold_flag` 
+is 0.
+
+```{r SMOTE_non_zero_sold_counts}
+historical_SMOTE %>% filter(sold_flag == 0 & sold_count != 0) %>% nrow
+```
+
+The SMOTE algorithm will generate new (synthetic) data points with 
+non-integral values of `sold_count`. When generating the new category, we will 
+round the non-integral synthetic entries.
+
+```{r historical_SMOTE_capped}
+sold_cap <- 2
+
+historical_SMOTE_capped <- historical_SMOTE %>% 
+    mutate(
+        sold_count_capped = case_when(
+            sold_count <= sold_cap ~ round(sold_count),
+            TRUE ~ sold_cap
+        ) %>% as.factor
+    )
+```
+
+In order to test our model, we have to cap the `sold_count` in the test set as
+well. Strangely, we have to use `as.numeric` when capping the `sold_count`, 
+even though `sold_count` is an integer. See 
+[dplyr issue 2365](https://github.com/tidyverse/dplyr/issues/2365).
+
+```{r historical_test_capped}
+historical_test_capped <- historical_test %>% 
+    mutate(
+        sold_count_capped = case_when(
+            sold_count <= sold_cap ~ as.numeric(sold_count),
+            TRUE ~ sold_cap
+        ) %>% as.factor
+    )
+```
+
+We can now train our trinomial model and compare it to the capped test set:
+
+```{r rf_smote_count_capped}
+rf_smote_count_capped <- historical_SMOTE_capped %>%   
+    randomForest(
+        formula = sold_count_capped ~ marketing_type + release_number + 
+            release_year + price_reg + low_net_price + 
+            low_user_price + item_count + strength_factor,
+        data = .,
+        ntree = 1000
+    )
+
+rf_smote_count_capped_preds <- rf_smote_count_capped %>% 
+    predict(historical_test_capped, "response")
+
+rf_smote_count_capped_cm <- rf_smote_count_capped_preds %>%
+    caret::confusionMatrix(historical_test_capped$sold_count_capped)
+
+rf_smote_count_capped_cm %>% print 
+```
+
+The accuracy of the model is around 
+`r round(100 * rf_smote_count_capped_cm$overall[["Accuracy"]])`. This might 
+seem encouraging, but what happens if we reduce this to a simple zero/non-zero
+classification model?
+
+```{r rf_smote_count_capped_reduced}
+rf_smote_count_capped_preds_reduced <- 
+    replace(rf_smote_count_capped_preds, rf_smote_count_capped_preds != 0, 1) %>% 
+    droplevels
+    
+rf_smote_count_capped_reduced_cm <- rf_smote_count_capped_preds_reduced %>% 
+    caret::confusionMatrix(historical_test$sold_flag)
+```
+
+The accuracy in this reduced binomial classification model is 
+`r round(100 * rf_smote_count_capped_reduced_cm$overall[["Accuracy"]])`. This
+might seem like an improvement, but from the confusion matrix we see a rise in
+false negatives. 
+
+It seems strange that we would see an improvement in accuracy by increasing
+the number of possible outcomes, and then reducing those outcomes after the 
+model is trained. To investigate further, let's compare this trinomial model 
+with the binomial random forest we trained earlier using the `SMOTE`-balanced 
+data:
+
+```{r binomial_trinomial_comparison}
+binomial_trinomial_comparison <- tibble(
+    actual = historical_test$sold_flag,
+    binomial = rf_smote_flag_preds,
+    reduced_trinomial = rf_smote_count_capped_preds_reduced
+)
+
+binomial_trinomial_comparison %>% 
+    count(actual, binomial, reduced_trinomial) %>% 
+    knitr::kable(format = "html") %>% 
+    kable_styling(full_width = F)
+```
+
+Now we can see where this increase in accuracy has come from. The reduced
+trinomial model sees a decrease in false positives and an increase in false
+negatives. The decrease in false positives is larger, so we see the accuracy 
+increase, but because of the imbalanced data a false negative is more 
+damaging than a false positive.
+
+One possible explanation is that the `SMOTE`-balanced data is almost balanced:
+Roughly 
+`r round(100 * (historical_SMOTE %>% filter(sold_flag == 1) %>% nrow) / (historical_SMOTE %>% nrow))`% of the entries have a `sold_flag` of 1. When we introduce an
+additional value for the variable (a `sold_count` of 2 or greater) we split this
+portion up into two smaller components. The data becomes greatly imbalanced 
+again, and we encounter the same issue we had before we balanced the data: the
+best way to improve model accuracy is to assume, when in doubt, that a given
+item will not sell. This improves model accuracy at the cost of model 
+usefulness.
+
+## Results
+
+We've had the most luck with the categorisation models, so we will focus on
+trying to predict `sold_flag`, rather than `sold_count`. While not ideal, the
+`sold_flag` should still serve to estimate the value of an item. We must 
+remember that even a single sale is a rare event, so the difference between
+a sale and non-sale is much more important than the difference between 1 and 2
+sales.
+
+We will use the random forest we trained on data balanced with the `SMOTE` 
+algorithm, since this offered a better predictive accuracy than the random forest trained using stratified bootstrap sampling.
+
+### Variable effects and importance
+
+Now that we've settled on a model, we can plot how this random forest believes 
+that the numeric variables impact the `sold_flag`. This visualisation below is 
+adapted from [this StackExchange answer by Zachary Deane-Mayer](https://stats.stackexchange.com/a/21457). 
+
+These graphs are based on the set on which the random forest was trained. This
+allows us to see how the model was trained, before we introduce unseen data to
+it.
+
+```{r random_forest_effects, message=FALSE}
+preds_on_history <- predict(rf_smote_flag, historical_SMOTE, "vote")[,2]
+plotData <- lapply(numeric_cols, function(x) {
+    out <- tibble(
+        var = x,
+        value = historical_SMOTE[[x]],
+        sold_flag = preds_on_history
+    )
+    out$value <- out$value-min(out$value) #Normalize to [0,1]
+    out$value <- out$value/max(out$value)
+    out
+})
+plotData <- do.call(rbind, plotData)
+qplot(value, sold_flag, data = plotData, facets = ~ var, geom='smooth', 
+      span = 0.5)
+```
+
+We can see from the shaded areas the effect that the outliers have. For example,
+it is difficult to determine the impact that `release_year` has on the outcome
+for early years, because of a lack of data.
+
+```{r random_forest_importance_plot}
+rf_smote_flag %>% 
+    varImpPlot(main = "Variable effect according to random forest using SMOTE")
+```
+
+### Differences between the active and historical inventories
+
+Let's take a moment to consider the differences between the `historical` and
+`active` data sets, to anticipate the predictions that our model may make. We
+will explore the four most significant variables, as identified by the random
+forest model.
+
+```{r diff_active_historical_strength_factor}
+sales %>% 
+    ggplot(aes(x = file_type, y = strength_factor, fill = file_type)) + 
+        geom_boxplot(na.rm = TRUE) + 
+        ylim(0, 120000)
+```
+
+We noted earlier that, for items shared across the `historical` and `active`
+inventories, the `strength_factor` of individual items changes between the two
+inventories. On the whole, however, there doesn't appear to be much of a 
+difference.
+
+```{r diff_active_historical_low_user_price}
+sales %>% 
+    ggplot(aes(x = file_type, y = low_user_price, fill = file_type)) + 
+        geom_boxplot(na.rm = TRUE) + 
+        ylim(0, 200)
+```
+
+We can plot the effect of strength factor, as predicted by the model, along
+with the medians from both the `historical` and `active` data sets:
+
+```{r strength_factor_effect_rf, message=FALSE, warning=FALSE}
+predicted_effect <- function(
+    var, 
+    historical_text_position = 0.3, 
+    active_text_position = 0.3, 
+    xmax = 200
+    ) {
+    
+    historical_median <- historical[[var]] %>% median
+    active_median <- active[[var]] %>% median
+    
+    tibble(
+        value = historical_SMOTE[[var]],
+        sold_flag = preds_on_history
+    ) %>% 
+        qplot(
+            value, 
+            sold_flag, 
+            data = .,
+            geom = 'smooth',
+            na.rm = TRUE
+        ) + 
+            xlim(0, xmax) + 
+            xlab(var) +
+            ylab("predicted probability of sale") +
+            geom_vline(xintercept = historical_median, colour = "#00BFC4") + 
+            geom_text(
+                aes(x = historical_median, label = "\nhistorical median", 
+                    y = historical_text_position), 
+                    colour="#00BFC4", angle = 90, text = element_text(size = 11)
+            ) +
+            geom_vline(xintercept = active_median, colour = "#F8766D") +
+            geom_text(
+                aes(x = active_median, label = "\nactive median", 
+                    y = active_text_position), 
+                    colour="#F8766D", angle = 90, text = element_text(size = 11)
+            )
+}
+
+predicted_effect(
+    var = "strength_factor",
+    historical_text_position = 0.45,
+    active_text_position = 0.45,
+    xmax = 3000000
+)
+```
+
+We can potentially expect a slightly higher probability of sale due to the lower 
+`strength_factor` in the `active` data set, but the predicted effect is unstable
+below around 800000.
+
+The `low_user_price` seems to have dropped from the observation period to the
+current inventory, from a median of `r historical$low_user_price %>% median` to
+a median of `r active$low_user_price %>% median`. We know that a higher price
+is associated with a lack of sales. The random forest model predicts the 
+following effect:
+
+```{r low_user_price_effect_rf, message=FALSE, warning=FALSE}
+predicted_effect(
+    var = "low_user_price",
+    historical_text_position = 0.45,
+    active_text_position = 0.45,
+    xmax = 200
+)
+```
+
+It's difficult to interpret this behaviour due to the strange behaviour of
+sale probability below $50 (or whatever the unit of measurement for
+`low_user_price` is). We an possible expect a slightly smaller probability of
+sale in the `active` inventory due to the decrease in median price.
+
+```{r diff_active_historical_item_count}
+sales %>% 
+    ggplot(aes(x = file_type, y = item_count, fill = file_type)) + 
+        geom_boxplot(na.rm = TRUE) + 
+        ylim(0, 50)
+```
+
+There is a slight decrease in `item_count` in the `active` inventory, from a 
+median of `r historical$item_count %>% median` to a median of 
+`r active$item_count %>% median`. We should be hesitant about drawing any
+conclusions from this because we don't know what business logic is used to
+decide `item_count`, and there is the possibility of feedback between sales and
+inventory. Nevertheless, the random forest model will predict the following:
+
+```{r item_count_effect_rf, message=FALSE, warning=FALSE}
+predicted_effect(
+    var = "item_count",
+    historical_text_position = 0.33,
+    active_text_position = 0.33,
+    xmax = 100
+)
+```
+
+That is to say, the reduction in item count is likely to lead to a reduced
+chance of sale when the random forest model is applied to the `active` 
+inventory. In the range shown, the effect is quite linear.
+
+```{r diff_active_historical_release_number}
+sales %>% 
+    ggplot(aes(x = file_type, y = release_number, fill = file_type)) + 
+        geom_boxplot(na.rm = TRUE) + 
+        ylim(0, 10)
+```
+
+Once again we see a difference with the `active` inventory having on average a 
+smaller `release_number` than the `historical` inventory. The `release_number`
+has dropped from a median of `r historical$release_number %>% median` to a 
+median of `r active$release_number %>% median`. The box plots we constructed
+earlier, however, did not demonstrate a large difference in `release_number`
+between the items that sold and the items that didn't.
+
+```{r release_number_effect_rf, message=FALSE, warning=FALSE}
+predicted_effect(
+    var = "release_number",
+    historical_text_position = 0.33,
+    active_text_position = 0.33,
+    xmax = 10
+)
+```
+
+We may expect a decrease in sale probability due to the difference in
+`release_number`. However, the behaviour of the probability as the 
+`release_number` changes is erratic, which may be why this pattern was not
+detected by a simple box plot.
+
+### Predicting sales in the active inventory
+
+Let's now apply our random forest to the `active` data set. We will include
+Boolean predictions for the `sold_flag`, as well as probabilities. The latter
+will be used for determining expected value.
+
+```{r applying_preds_to_active}
+active$sold_flag <- rf_smote_flag %>% predict(active, "response")
+active$sold_flag_prob <-  (rf_smote_flag %>% predict(active, "prob"))[,2]
+```
+
+Let's check how many items are now predicted to sell over the next six months,
+compared to the `historical` data set.
+
+```{r sales_figures_in_active}
+historical %>% 
+    count(sold_flag) %>% 
+    mutate(proportion = {100 * n / nrow(historical)} %>% round %>% paste0("%")) %>% 
+    knitr::kable(format = "html") %>% 
+    kable_styling(full_width = F)
+
+active %>% 
+    count(sold_flag) %>% 
+    mutate(proportion = {100 * n / nrow(active)} %>% round %>% paste0("%")) %>% 
+    knitr::kable(format = "html") %>% 
+    kable_styling(full_width = F)
+```
+
+Items in the `active` set are less likely to sell than those in the 
+`historical` set. Given the differences between the two sets, this isn't
+surprising. It could also be a consequence of the slight data imbalance that
+remained after the application of the `SMOTE` algorith, which will encourage
+the random forest model to favour predictions of no sale.
+
+Earlier we opted (on weak justification) to use the `low_user_price` to 
+determine expected value.
+
+```{r expected value}
+active <- active %>% 
+    mutate(expected_value = sold_flag_prob * low_user_price)
+```
+
+We can now rank the items by `expected_value`. 
+
+```{r active_ranked}
+active %>% 
+    select(SKU_number, low_user_price, sold_flag_prob, expected_value) %>%
+    arrange(-expected_value) %>% 
+    {rbind(head(.), "...", tail(.))} %>%  # top 6 and bottom 6
+    knitr::kable(format = "html") %>% 
+    kable_styling(full_width = F)
+```
+
+The top items at the top of this ranking are those that have an acceptable 
+chance of selling (compared to the low average) and a reasonable 
+`low_user_price`. Sure enough, the items at the bottom of the ranking are those 
+with $0 `low_user_price`.

@@ -1,0 +1,34 @@
+---
+title: An update on copyright and licencing
+author: ''
+date: '2019-09-11'
+slug: an-update-on-copyright-and-licencing
+categories: []
+tags: []
+images: ["/img/door-green-closed-lock.jpg"]
+featuredalt: 'a padlock chained across a green door'
+output: hugodown::md_document
+---
+
+When I started this blog I wanted a way to share the quick little projects that distract me. I gave some thought to licencing, but I wanted to make sure that people could use my code if it had any value to them. This is just a little blog by a very unimportant guy---if someone got some use out of my code, I would be flattered!
+
+However, in the last few days I've seen some unwelcome behaviour. People have been copying my work into their own LinkedIn posts, changing my words but not adding value. It makes me uncomfortable to see my work used this way.
+
+All of the **content** on this site will now be licenced under a [Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License](http://creativecommons.org/licenses/by-nc-nd/4.0/), unless otherwise noted.
+
+This is a restrictive licence, and I don't want to restrict anyone who is genuinely contributing to the R community, instead of just trying to boost their LinkedIn profile. If this restriction isn't working for you, [contact me](/about), and I'll help as best I can. I'll be genuinely flattered---and surprised---that something I've made can be helpful to you.
+
+## Third-party components, tools and fonts
+
+* [Hugo](https://github.com/gohugoio/hugo): [Apache License 2.0](https://github.com/gohugoio/hugo/blob/master/LICENSE)
+* [blogdown](https://github.com/rstudio/blogdown): GPL-3 license
+* [hugodown](https://github.com/r-lib/hugodown): [MIT license](https://github.com/r-lib/hugodown/blob/master/LICENSE)
+* [Future Imperfect Slim Theme for Hugo](https://github.com/pacollins/hugo-future-imperfect-slim): [CC BY 3.0](https://github.com/pacollins/hugo-future-imperfect-slim/blob/master/LICENSE.md)
+
+The header image at the top of this page is in the 
+[public domain](https://www.pexels.com/photo/door-green-closed-lock-4291/).
+
+***
+```{r sessioninfo}
+devtools::session_info()
+```

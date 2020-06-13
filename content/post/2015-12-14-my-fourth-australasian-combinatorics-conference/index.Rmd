@@ -1,0 +1,35 @@
+---
+title: My fourth Australasian Combinatorics Conference
+author: ''
+date: '2015-12-14'
+slug: my-fourth-australasian-combinatorics-conference
+categories: []
+tags:
+  - maths
+images: ["/img/ACCMCC_UQ.jpg"]
+featuredalt: 'The University of Queensland'
+output: hugodown::md_document
+---
+
+My first maths conference was The 36th Australasian Conference on Combinatorial Mathematics and Combinatorial Computing. I had just finished my honours thesis, <em>Generalising the Clique-Coclique Bound</em>, and I had travelled to Sydney to present my results to a room full of people much smarter than me.
+
+I'm no longer working in graph theory or finite geometry, but every year since 2012 I have attended the ACCMCC. I keep up to date with the research, and I maintain contact with some of the best mathematicians I've ever met. So last week I flew to Brisbane for the 39th ACCMCC, held at the gorgeous University of Queensland campus in St. Lucia.
+
+As always, the ACCMCC was an expertly run conference. I have to mention the public lecture by Jonathan Jedwab, *What is a research mathematician?*. The lecture was held on the 150th birthday of Hadamard, and Jedwab used Hadamard matrices to illustrate the development of mathematical theory. Jedwab is one of the best mathematics speakers I've ever seen, and certainly the best at communicating maths to a general audience.
+
+In a first for me, I decided to attend the conference excursion. It was a boat trip to the St. Helena National Park, used as a prison in the 19th century. The place itself was beautiful, but unfortunately the tour didn't include a walk around the island.
+
+![St. Helena Island National Park](img/ACCMCC_St_Helena.jpg)
+
+The best part of the conference wasn't the matroids, or even the "breakfast cheesecake" from the accommodation in which I was staying. You see, I got to spend the week with the mathematicians from my alma mater, The University of Western Australia. These people are passionate about mathematics, and it's hard to be around them without feeling the same.
+
+![St. Helena Island National Park](img/ACCMCC_UWA.jpg)
+
+I got to hang out with Mark (bottom-left), with whom I shared an office while I was studying my honours degree, and who this year won the well-deserved prize for the best student talk. I got to attend a plenary by Gordon Royle (top), who taught me linear algebra and had to always tell me to stop talking in his lectures. And I got to have morning coffee with John Bamberg (middle), my honours supervisor and one of the people who first inspired me to do maths.
+
+As I'm preparing to write my thesis and transition out of academia, I know that my conference days are coming to a close. But if all goes well, I hope to squeeze just one last ACCMCC out of my time at university. Next year is the 40th ACCMCC, held in Newcastle, and I'll do my very best to make it my fifth Australasian combinatorics conference in a row.
+
+***
+```{r sessioninfo}
+devtools::session_info()
+```

@@ -1,0 +1,127 @@
+---
+title: 'useR: The Week in Review'
+author: ''
+date: '2018-07-13'
+slug: user-the-week-in-review
+categories: []
+tags: [R, conference]
+images: ["/img/useR/week_in_review.png"]
+featuredalt: "useR2018 Week in Review"
+output: hugodown::md_document
+---
+
+That's it for #useR2018. After 6 keynotes, 132 parallel sessions, many more 
+lightning talks and posters, and an all-important conference dinner, we've 
+reached the end of the week.
+
+This was my first proper conference since 2015. I had almost forgotten how
+it felt to be surrounded by hundreds of people who are just as passionate 
+(if not more) about your tiny area of specialised knowledge than you are.
+
+I took notes for the three tutorials I went to, but I wanted to take a moment
+to review the week as a whole, including the talks that stood out to me.
+You can find my tutorial notes below:
+
+* [Tutorial one: Getting Started with R and Docker](/post/user-getting-started-with-r-and-docker/)
+* [Tutorial two: Recipes for Data Processing](/post/user-recipes-for-data-processing/)
+* [Tutorial three: Missing Values Imputation](/post/user-missing-values-imputation/)
+
+All talks and tutorials were recorded, so keep an eye out for them on the 
+[useR2018 site](https://user2018.r-project.org/). The #rstats community is 
+active on Twitter, so check out the [#useR2018](https://twitter.com/search?q=%23useR2018)
+hashtag as well.
+
+```{r package_load, include = FALSE}
+library(tidyverse)
+```
+
+![The famous #hexwall, with [Adam Gruer](https://twitter.com/AdamGruer)](img/hexwall.jpg)
+
+## A quick personal note
+
+I'd like to declare my own biggest success and biggest failure of the 
+conference:
+
+* **Biggest personal win**: I posted notes from each of the three tutorials I 
+went to! This forced me to learn more about PCA, which is a big win.
+* **Biggest personal not-win**: I didn't present anything. I told myself this 
+was because I had nothing to present, but I'm not so sure that's true.
+
+## Talk highlights
+
+* [Steph de Silva](https://twitter.com/StephdeSilva) spoke of R as not just a 
+language but a *community*. And in this community you go from seeing R as 
+something you use to seeing R as something you share. The R subculture(s) have 
+real power to contribute in a world where data affects decisions. 
+* [Rob Hyndman](https://twitter.com/robjhyndman)'s new `fable` package looks
+super easy to use. It's a tidyverse-compatible replacement for his extremely
+popular `forecast` package. He calls it "fable" because "fables aren't true but 
+they tell you something useful about reality, just like a forecast."
+* [Thomas Lin Pedersen](https://twitter.com/thomasp85) is rewriting the 
+``gganimate`` package and it looks *so cool*. He described visualisation as
+existing on a spectrum between static, interactive, and animated. Traditional
+media (eg. newspapers) use static visualisation and modern journalism websites 
+use interactive visualisation, but animated visualisation is often found in
+social media.
+
+```{r gganimate_example, echo = FALSE}
+blogdown::shortcode('tweet', '1014132180853903360')
+```
+
+* [Katie Sasso](https://twitter.com/KatieSasso) introduced **standalone Shiny
+applications** using Electron. I am so keen to try these out! Imagine being
+able to distribute a Shiny app to someone without them needing to so much as 
+install R.
+* [Nicholas Tierney](https://twitter.com/nj_tierney)'s `maxcovr` package makes
+it easier to solve the [maximal coverage location problem](https://en.wikipedia.org/wiki/Maximum_coverage_problem) in R.
+His choice of example was apt. Brisbane offers free public wifi in and around
+the CBD, and the `maxcovr` package can be used to identify optimal placemennt 
+of new routers to improver the coverage population and area.
+* [Roger D. Peng](https://twitter.com/rdpeng) spoke about the teaching R.
+I loved the quote from John Chambers on S (R's predecessor): "We wanted users 
+to begin in an interactive environment, where they did not consciously think of 
+themselves as programming... they should be able to slide gradually into 
+programming." This is the R value proposition in a nutshell for me: you don't 
+*have* to jump into the developer side of things, but if you want to start 
+going down that path it's a gradual transition.
+
+```{r tidyverse_unix_philosophy, echo = FALSE}
+blogdown::shortcode('tweet', '1017552963861037056')
+```
+
+* [Jenny Bryan](https://twitter.com/JennyBryan) spoke about code smells and 
+feels. Whenever I read something cool and useful about R I look at the author 
+and there's a good chance it's Jenny. I like that the advice in her talk is
+more "use this in moderation" rather than the prescriptive "Don't do this".
+* [Danielle Navarro](https://twitter.com/djnavarro) shared her experience in 
+teaching R to psychology students. This one resonated, especially with her
+emphasis on student fear. Student fear stops learning before it can begin!
+* [Martin Mächler](https://twitter.com/MMaechler) of the R Core team discussed
+an often-neglected topic: numerical precision. It was a chance to get into the
+guts of R. He also gave the following bizarre example:
+
+```{r bad_precision}
+unique((1:10)/10 - (0:9)/10)
+```
+
+> "10.0 times 0.1 is hardly ever 1.0" - *The Elements of Programming Style* by Brian W. Kernighan and P. J. Plauger
+
+## Wrapping up
+
+Thank you to the organisers and to everyone who contributed to the conference.
+
+I met a tonne of people here and I can't mention everyone. Thank you to the 
+following people for existing and for making my #useR2018 experience 
+extra-special: 
+[Adam Gruer](https://twitter.com/AdamGruer),
+[Dale Maschette](https://twitter.com/Dale_Masch),
+[Emily Kothe](https://twitter.com/emilyandthelime),
+[John Ormerod](https://twitter.com/john_t_ormerod),
+[Steph de Silva](https://twitter.com/StephdeSilva), 
+[Charles T. Gray](https://twitter.com/cantabile), and
+[Ben Harrap](https://twitter.com/BHarrap).
+
+***
+```{r sessioninfo}
+devtools::session_info()
+```

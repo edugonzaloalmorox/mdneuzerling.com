@@ -1,0 +1,267 @@
+---
+title: How I'd like to send an email from R
+author: ''
+date: '2018-08-15'
+slug: how-i-d-like-to-send-an-email-from-R
+categories: []
+tags:
+  - R
+images: ["/img/pipes.jpeg"]
+featuredalt: "pipes"
+output: hugodown::md_document
+---
+
+When I found myself using R in a corporate environment, my workflow went 
+like this:
+
+1. Connect to databases
+1. Do stuff to data
+1. **Email** results
+
+Yes, there exist options for presenting results that are a bit more modern than
+the old-fashioned email---R Markdown, Shiny, or even Slack, for example. But 
+email is embedded in corporate culture and will be around for a long time to 
+come.
+
+I want to set down how I think a `send_email` function should work in R.
+
+## But we can already send emails in R
+
+Just sending an email is nothing new. There's the 
+[`sendmailR`](https://cran.r-project.org/web/packages/sendmailR/index.html) and 
+[`mailR`](https://cran.r-project.org/web/packages/mailR/index.html)
+packages, for example. These use the SMTP protocol. Then there's the `gmailr` 
+package, which connects to gmail's REST API to send (and receive) mail. I've 
+played around with doing the same for Outlook (`outlookr`, anyone?), which also 
+covers the Office365 environment found almost ubiquitously in older corporate 
+environments.
+
+My first attempt to improving my workflow used none of that. I used 
+[Duncan Temple Lang 's `RDCOMClient`](https://github.com/omegahat/RDCOMClient) 
+(also available on [GitHub](https://github.com/omegahat/RDCOMClient))
+to connect to a locally installed copy of Microsoft Outlook. This
+package allows R to connect to the DCOM architecture. You can think of DCOM as
+an API for communicating with Microsoft Office in Windows environments.
+
+I'll talk about the benefits and drawbacks of DCOM later, but the main appeal
+for me is that I can connect R to the Outlook application installed on my 
+(Windows) computer, and let Outlook handle all of that super tricky 
+authentication nonsense. This was the appeal for me---no passwords or OAuth 
+keys, because that stuff is all too *hard*.
+
+For my use case, I wanted to send things like reports and alerts. That meant
+sending ggplots and data frames, not as attachments but *in the body of the
+email*. With a lot of help from StackExchange, I worked out how to do this 
+with `RDCOMClient`. I wanted to do more than just *send an email in R*. I 
+wanted emailing from within R to feel like a natural extension of the 
+language.
+
+## The prototype: `RDCOMOutlook`
+
+I've been playing around with `RDCOMClient` [for a while](/post/using-r-to-send-an-outlook-email-with-an-inline-image/). It was 
+even responsible for my first StackExchange answer. But all of stuff I had 
+learnt was scattered across a dozen stray R scripts. So I spent a week turning 
+everything I had done with `RDCOMClient` into a package called `RDCOMOutlook`, 
+available on [GitHub](https://github.com/mdneuzerling/RDCOMOutlook).
+
+I want to be clear here: this package is a proof-of-concept, and I have no plans
+to develop it any futher. I'm not submitting it to CRAN, especially since 
+`RDCOMClient` itself is no longer available on CRAN. But developing the package 
+helped me realise what I wanted a `send_email` function to look like.
+
+Actually, in `RDCOMOutlook` it's called `prepare_email`. You can do this 
+thing with DCOM where you get the email to pop up on the user's screen without
+immediately sending. I thought that was cool, and I made it the default 
+behaviour, with a `send` argument as an option.
+
+## The prototype: `prepare_email`
+
+Here's the head of the `prepare_email` function in `RDCOMOutlook`:
+
+```
+prepare_email <- function(
+    embeddings = NULL,
+    body = "",
+    to = "",
+    cc = "",
+    subject = "",
+    attachments = NULL,
+    css = "",
+    send = FALSE,
+    data_file_format = "csv",
+    image_file_format = "png"
+)
+```
+
+You can see some expected stuff in there. Emails have bodies, subjects, 
+recipients and (optionally) cc'd recipients and attachments. These arguments 
+are natural and expected. These are HTML emails, so you can even use some 
+custom CSS (I used this to put some company colours into my reports). None of
+the arguments are required; running `prepare_email()` causes a blank Outlook
+composition window to pop up on the user's screen.
+
+But `embeddings`, `data_file_format` and `image_file_format` are a bit weirder.
+And `embeddings` is the *first* argument. The first argument in an R function is
+in a privileged position, because that's the default target for the pipe 
+(`%>%`). 
+
+Here's what happens when you give object `obj` to the `embeddings`
+argument:
+
+1. If `obj` is a ggplot, it will be embedded into the **body** of the email as 
+a resonably sized image.
+1. If `obj` is a data frame or tibble, it will be converted into a HTML table
+and embedded into the body of the email.
+1. If `obj` is a file path pointing to an image file, it will be embedded into
+the body of the email.
+1. If `obj` is a file path pointing to a file that isn't an image, it will be 
+passed to the `attachments` argument.
+1. Failing all of that, an error is thrown: `obj is not a ggplot, data frame, 
+tibble or valid file path. Check that the file exists.`
+
+A benefit of `DCOM` is that you can get the user's email signature as defined
+in Outlook. So I put the embedding between the provided `body` and the 
+signature.
+
+The `attachments` argument follows similar logic, except it will attach a
+plot or data frame/tibble. This is where the file format arguments come into 
+play. I like `data_file_format`---you might want to send an Excel file, for 
+example. But I think we can do without the `image_file_format` argument. Does 
+anyone really care if their image is a jpeg or a png?
+
+## What happens in the background?
+
+To embed or attach a ggplot, we need to save it as a file in a temporary
+location. We attach the file and---if we're embedding it---refer to the file
+name in an HTML tag using a *content identifider (cid)*. This tells the 
+email client that it needs to show the attachment in the body of the email.
+
+When I first tried to do this I got some warped ggplots. You need to specify
+image dimensions in HTML, but that means *getting* the image dimensions. The
+`readbitmap` package is crucial here, since it lets me inspect the most 
+commonly used image formats.
+
+At one point, I was inspecting file headers to try to guess the image format!
+
+```{r image_format, eval = FALSE}
+file_header <- readBin(file_path, "raw", n = 8)
+
+# Reference headers
+png_header <- as.raw(strtoi(c("89", "50", "4e", "47", "0d", "0a", "1a", "0a"), 16))
+jpg_header <- as.raw(strtoi(c("FF", "D8"), 16))
+bmp_header <- as.raw(strtoi(c("42", "4D"), 16))
+gif_header <- as.raw(strtoi(c("47", "49", "46"), 16))
+
+format <- if (identical(file_header, png_header)) {
+    "png"
+} else if (identical(file_header[1:2], jpg_header)) {
+    "jpg"
+} else if (identical(file_header[1:2], bmp_header)) {
+    "bmp"
+} else if (identical(file_header[1:3], gif_header)) {
+    "gif"
+} else {
+    "unknown"
+}
+```
+
+<!-- Tweet about yak shaving -->
+
+The images then have to be scaled down to a reasonable maximum size (I used
+800 pixels in either dimension), while preserving the image ratio.
+
+There's also the matter of turning stuff into a list in R. I can run lists 
+through `purrr` functions to embed/attach multiple files. But am I the only one
+who finds this really hard? Check out this hideous helper function I used:
+
+```{r make_list, eval = FALSE}
+make_list <- function(x) {
+    if (is.null(x)) {
+        x
+    } else if (is.ggplot(x)) { # ggplots are lists
+        list(x)
+    } else if (is.data.frame(x)) {
+        list(x)  
+    } else if (is.list(x)) {
+        x
+    } else if (is.vector(x)) {
+        as.list(x)
+    } else {
+        list(x) # single item case
+    }
+}
+```
+
+Lists are also important here because lists can have *names*, and we need those 
+for embeddings and attachments. If the user puts only `obj` into the embeddings 
+or attachments argument, `prepare_email` will attach, for example, `obj.png`. 
+With a list of embeddings or attachments, it will use the names in the list. If 
+these aren't available, or if the object is named `.` (as would be the case if 
+it is coming from a pipe), sensible dummy names are used. File names aren't 
+visible for embeddings, but we do need to ensure that they don't conflict, or
+else the cid tags will get confused.
+
+## The ideal `send_email` function
+
+As I said, I don't have any plans to develop this package any further. 
+`RDCOMOutlook` is great for my situation, but it's not a modern answer. For one 
+thing, it only works on Windows, and only with Outlook. DCOM itself is old and
+the documentation is non-existent; there were times here where I was literally
+*guessing* function names.
+
+But most of the hard stuff is just juggling list names and image dimensions.
+That doesn't use DCOM. So why can't I take what I've done and stick in some 
+other way of sending emails? So maybe the new function, `send_email`, will
+have something like a `connection` argument?
+
+Without DCOM I do lose that nifty ability to make an email pop up on the 
+screen instead of sending it. That's why I have to drop the `prepare_email`
+function name. I might also lose the ability to pick up the user's signature.
+
+Here's a possible way to move away from DCOM:
+
+1. Focus on getting the prototype to work with SMTP. I imagine this covers the
+majority of use cases.
+1. Bring in compatibility with `gmailr`.
+1. Using `gmailr` as a guide, create `outlookr` and bring it into the fold.
+
+I've actually had a fair bit of luck accessing the Outlook API using the
+wonderful `httr` package. I can authenticate and download email attachments.
+But Turning all of that into a proper package with good credential handling 
+would be a challenge.
+
+## Bonus goal: searching emails
+
+I built something else for the `RDCOMOutlook` prototype: the ability to search
+for emails and download attachments. The results are displayed in a nice,
+pretty tibble:
+
+```{r email_search_code, eval = FALSE}
+RDCOMOutlook::search_emails("test") %>% select(subject, received, attachments)
+```
+
+```{r email_search_results, echo = FALSE}
+email_search_results <- readr::read_rds("email_search_results.rds")
+email_search_results
+```
+
+The problem here is that the `AdvancedSearch` method of DCOM is
+*asynchronous*; that is, the search will continue to run in the background 
+while R continues with the next statement. There is an `AdvancedSearchComplete`
+*event*, I wasn't able to work out how to handle DCOM events. There is a 
+package, called `RDCOMEvents`, that sounds suitable for this.
+
+But I was able to download attachments from an Office365 email account using
+the Outlook REST API. I believe that `gmailr` can do the same. So I can 
+probably recreate this without DCOM. This is a stretch goal, and probably a 
+distraction, but it does seem like nice functionality to have.
+
+## Sources
+
+The header image at the top of this page is modified from an image in the
+[public domain](https://www.pexels.com/photo/gray-steel-tubes-586019/).
+
+***
+```{r sessioninfo}
+devtools::session_info()
+```

@@ -1,0 +1,359 @@
+---
+title: Scraping wine colours with R
+author: ''
+date: '2018-07-01'
+slug: scraping-wine-colours-with-r
+tags:
+    - R
+    - scraping
+images: ["/img/grapes.jpeg"]
+featuredalt: "grapes"
+output: hugodown::md_document
+---
+
+My knowledge of wine covers three facts:
+
+1. I like red wine.
+1. I do not like white wine.
+1. I love wine *data*.
+
+I came across a great collection of around 130,000 wine reviews, each a 
+paragraph long, on [Kaggle](https://www.kaggle.com/zynicide/wine-reviews).
+This is juicy stuff, and I can't wait to dig into it with some text analysis,
+or maybe build some sort of markov chain or neural network that generates new 
+wine reviews.
+
+But I wanted to start with something simple---a little bit of feature
+engineering. There's around 700 different *varieties* (eg. merlot, riesling)
+in here, and I thought it would be easy to add on whether or not they were
+red, white or rosé. 
+
+It was not.
+
+I won't show you all the failed attempts; I'll just focus on what worked in the 
+end. This is the process:
+
+1. Scrape wine colour data from Wikipedia
+1. Join the colours with the wine varieties
+1. Fix errors and duplicates
+1. Improve the wine colour data, and repeat
+1. When all else fails, manually classify what remains.
+
+Classifying wine into three simple categories is a tough ask, and I can hear the
+connoisseurs tutting at me. Some grapes can be red and white, and I'm told that
+there's such a thing as "orange" wine (and no, it's not made from 
+oranges---I did ask). Dessert wines and sparkling wines can probably be 
+classified as red or white, but really they're off doing their own thing. I 
+acknowledge how aggressive this classification is, but I'm going to charge
+ahead anyway.
+
+## Quick look at the data
+
+```{r setup, warning = FALSE, message = FALSE, cache = FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+
+set.seed(42275) # Chosen by fair dice roll. Guaranteed to be random.
+ 
+library(tidyverse)
+library(ggplot2) 
+library(rvest)
+
+red_wine_colour <- "#59121C"
+white_wine_colour <- "#EADB9F"
+rose_wine_colour <- "#F5C0A2"
+
+wine <- "wine_reviews.csv" %>% 
+    read_csv %>% 
+    mutate(variety = variety %>% tolower)
+
+wine %>% str
+```
+
+
+I think this data will keep me entertained for a while. There's a lot to dig 
+into here, and those reviews are going to be interesting when I can pull them
+apart. For example, `r nrow(filter(wine, grepl("tennis ball", description)))`
+wines are described as tasting of tennis balls, and these wines are rated 
+about average. It makes me think that I'm not spending enough time in life
+appreciating the taste of tennis balls. Dogs understand this.
+
+Speaking of points, it appears as though wines are ranked on a scale from 80
+to 100. Although, looking at the plot below, you'd be forgiven for thinking that
+the scale is from 80 to 97. Only 0.01% of wines make it to a rating of 100.
+
+```{r points}
+wine %>% ggplot(aes(x = points)) + 
+    geom_histogram(
+        bins = nrow(wine %>% distinct(points)),
+        colour = "white",
+        fill = red_wine_colour
+    )
+```
+
+The review below is for an 80-point wine, and it's certainly one of my 
+favourite descriptions:
+
+```{r grandma_wine, results='asis'}
+wine %>% 
+    filter(X1 == 11086) %>% 
+    select(description) %>% 
+    paste0('> ', .) %>% # print as quote
+    cat
+```
+
+One wine, indexed 86909, has a missing variety. Fortunately, we can recover the
+information from the review:
+
+```{r missing_variety_review, results='asis'}
+wine %>% 
+    filter(X1 == 86909) %>% 
+    select(description) %>% 
+    paste0('> ', .) %>% # print as quote
+    cat
+```
+
+```{r fix_missing_variety}
+wine <- wine %>% mutate(
+  variety = ifelse(X1 == 86909, "petite syrah", variety)
+)
+```
+
+## Scraping Wikipedia
+
+In order to classify the wines as red, white or rosé, we're going to scrape
+wine data from the [List of grape varieties](https://en.wikipedia.org/wiki/List_of_grape_varieties)
+Wikipedia page, using the `rvest` package. The first three tables of this page
+give red, white and rosé wines, in that order.
+
+We're going to use an older version of the article, dated 2018-06-29, for 
+consistency. Wikipedia displays a notice that the user is reading an older 
+version of the article. This counts as a table, and so the code below refers to
+tables 2, 3 and 4. If using the live version, replace these figures with 1, 2
+and 3.
+
+```{r grape_colours_wiki_scrape, message = FALSE}
+# Use an old revision of the article for consistency
+wiki_tables <- "https://en.wikipedia.org/w/index.php?title=List_of_grape_varieties&oldid=847983339" %>% 
+    read_html %>% 
+    html_nodes("table")
+red_wines <- wiki_tables[[1]] %>% html_table %>% cbind(colour = "red")
+white_wines <- wiki_tables[[2]] %>% html_table %>% cbind(colour = "white")
+rose_wines <- wiki_tables[[3]] %>% html_table %>% cbind(colour = "rosé")
+all_wines <- rbind(red_wines, white_wines, rose_wines)
+all_wines %>% 
+    select(`Common Name(s)`, `All Synonyms`, colour) %>% 
+    head(1)
+```    
+
+We're interested in three columns here: `Common Name(s)`, `All Synonyms` and
+the `colour` column we defined from the table scraping. We will take the 
+opportunity to rename the columns to match the tidyverse style.
+
+Apart from synonyms, some wines can also have multiple common names, eg. 
+"shiraz / syrah". The synonyms seem to be very broad, and can include some
+unexpected results: pinot grigio (also known as pinot gris) is used to produce
+white wine, yet it appears as a synonym to canari noir, which is used to make
+red wine.
+
+We're going to preference the common names over the synonyms, so that in any
+conflict we use the colour as given by the common name. To do this, we're going
+to `unnest` the common names and clean the results so that all entries are in 
+lower-case, the results are distinct, and certain stray bits of punctuation are 
+removed. We're then going to do the same with the synonyms, but when we combine
+the results we will ignore all entries that are already provided by the common
+names.
+
+The end result will be a single table with two columns: `variety`, and `colour`. 
+The table may very well still contain duplicates, but certainly less than we 
+would have had if we had treated common names and synonyms as equals.
+
+```{r grape_colours_cleaning, message = FALSE}
+all_wines_cleaned <- all_wines %>% 
+    rename(
+        common_names = `Common Name(s)`,
+        synonyms = `All Synonyms`
+    ) %>% 
+    mutate_all(tolower) %>% 
+    select(common_names, synonyms, colour)
+
+common_names <- all_wines_cleaned %>%
+    unnest(common_names = strsplit(common_names, " / ")) %>% # split common names into separate rows
+    rename(variety = common_names) %>% 
+    mutate(
+        variety = gsub("\\.", "", variety), # remove periods 
+        variety = gsub("\\s*\\([^\\)]+\\)", "", variety), # remove brackets and anything within
+        variety = gsub("\\s*\\[[^\\)]+\\]", "", variety) # same for square brackets
+    ) %>% 
+    select(variety, colour)
+
+synonyms <- all_wines_cleaned %>% 
+    unnest(synonyms = strsplit(synonyms, ", ")) %>% # split the synonyms into multiple rows
+    rename(variety = synonyms) %>% 
+    mutate(
+        variety = gsub("\\.", "", variety), # remove periods 
+        variety = gsub("\\s*\\([^\\)]+\\)", "", variety), # remove brackets and anything within
+        variety = gsub("\\s*\\[[^\\)]+\\]", "", variety) # same for square brackets
+    ) %>% 
+    select(variety, colour) %>% 
+    anti_join(common_names, by = "variety") # remove synonyms if we have a common name
+
+variety_colours <- rbind(common_names, synonyms) %>% 
+    distinct %>% 
+    arrange(variety)
+
+variety_colours %>% head
+```    
+
+The end result is `r nrow(variety_colours)` rows, with plenty of repeated 
+entries to accommodate for multiple names or variations in spelling.
+
+## Joining the colour data
+
+Now we join the colours with the wine data. If there are any missing values, we 
+can attempt to fill them in based on obvious clues in the variety (eg. a "Red 
+blend" can safely be assumed to be a red wine). We're going to repeat this
+join as we iteratively improve the `variety_colours` data, so we'll define it 
+as a function.
+
+```{r join_with_variety_colours}
+join_with_variety_colours <- function(wine, variety_colours) {
+    wine %>% 
+        left_join(
+            variety_colours %>% select(variety, colour),
+            by = "variety"
+        ) %>% 
+        mutate(
+            colour = case_when(
+                !is.na(colour) ~ colour,
+                grepl("sparkling", variety, ignore.case = TRUE) ~ "white",
+                grepl("champagne", variety, ignore.case = TRUE) ~ "white",
+                grepl("red", variety, ignore.case = TRUE) ~ "red",
+                grepl("white", variety, ignore.case = TRUE) ~ "white",
+                grepl("rosé", variety, ignore.case = TRUE) ~ "rosé",
+                grepl("rose", variety, ignore.case = TRUE) ~ "rosé"
+            )
+        )
+}
+
+wine_colours <- wine %>% join_with_variety_colours(variety_colours)
+
+plot_wine_colours <- function(wine_colours) {
+    wine_colours %>% 
+    ggplot(aes(x = colour, fill = colour)) + 
+    geom_bar() + 
+    scale_fill_manual(values = c(
+        "red" = red_wine_colour, 
+        "white" = white_wine_colour, 
+        "rosé" = rose_wine_colour),
+        na.value = "grey"
+    ) + 
+    ggtitle("Wine colours") +
+    theme(legend.position="none")
+}
+
+plot_wine_colours(wine_colours)
+```
+
+All but `r nrow(filter(wine_colours, is.na(colour)))` wines have been 
+classified. We still have some colours missing, but first we consider the wines 
+that have been classified as multiple colours:
+
+```{r wrong_colours}
+wine_colours %>% 
+    distinct(variety, colour) %>% 
+    count(variety) %>% 
+    filter(n > 1)
+```
+
+We use web searches to manually classify the varieties based on the colour of 
+the wine that is most often produced from them.
+
+```{r wrong_colours_fix}
+variety_colours <- variety_colours %>% 
+    filter(!(variety == "alicante" & colour != "red")) %>%     
+    filter(!(variety == "grignolino" & colour != "red")) %>% 
+    filter(!(variety == "malvasia fina" & colour != "white")) %>% # rarely red
+    filter(!(variety == "sauvignon" & colour != "white"))
+```
+
+The below suggests that blends are not being classified:
+
+```{r missing_colours}
+wine_colours %>% 
+    filter(is.na(colour)) %>% 
+    count(variety, sort = TRUE) %>% 
+    head(10)
+```
+
+We operate under the assumption that if multiple wines are listed, the first
+wine determines the colour. For example, cabernet is red and sauvignon is white,
+but cabernet sauvignon is red. We try to classify the unclassified wines again
+but using only the first word in their varieties. We split the variety by either
+spaces or dashes.
+
+```{r blend_classification}
+blend_colours <- 
+    wine_colours %>% 
+    filter(is.na(colour)) %>% 
+    select(variety) %>% 
+    rowwise %>% 
+    mutate(first_variety = unlist(strsplit(variety, "\\-|\\ | "))[1]) %>% 
+    merge(variety_colours, by.x = "first_variety", by.y = "variety") %>% 
+    select(variety, colour) %>% 
+    distinct
+```
+
+Now we can rebuild the wine colours using these new blend results:
+
+```{r join_with_blend_colours}
+wine_colours <- wine %>% join_with_variety_colours(
+    rbind(variety_colours, blend_colours)
+) 
+
+plot_wine_colours(wine_colours)
+```
+
+All but `r nrow(filter(wine_colours, is.na(colour)))` wines have been 
+classified. This is an improvement, but we still have to classify the rest.
+
+## Manual classifications
+
+We manually classify the remaining 
+`r wine_colours %>% filter(is.na(colour)) %>% distinct(variety) %>% nrow`
+varieties using web searches or the `description`s (reviews) associated with
+the wines.
+
+```{r manual_colours}
+manual_colours <- "manually_classified.csv" %>% read_csv
+
+wine_colours <- wine %>% join_with_variety_colours(
+    rbind(variety_colours, blend_colours, manual_colours)
+) 
+
+plot_wine_colours(wine_colours)
+```
+
+And we're there! As I said earlier, this is a somewhat aggressive 
+classification. But we've got the most popular wines---the pinot noirs and the
+chardonnays---classified, and we can hope that any errors are only "kind of 
+wrong" rather than "totally wrong", and limited to the varieties that only 
+appear once or twice.
+
+## Data sources
+
+To avoid any potential licencing issues, I prefer not to post Kaggle data 
+directly here. I encourage you to download the csv 
+[directly from Kaggle](https://www.kaggle.com/zynicide/wine-reviews/). This will
+require a (free) Kaggle account. I've renamed the file here to `wine_reviews.csv`,
+but otherwise the data is unchanged before it is read. Other data used here:
+
+* My manual classification of variety colours: [manually_classified.csv](/data/manually_classified.csv)
+* The final outcome, giving just varieties and colours: [variety_colours.csv](/data/variety_colours.csv)
+
+The header image at the top of this page is in the 
+[public domain](https://www.pexels.com/photo/abundance-alcohol-berries-berry-357742/).
+
+***
+```{r sessioninfo}
+devtools::session_info()
+```
