@@ -2,14 +2,10 @@
 .Rhistory
 .Rapp.history
 
-# Certain data files
-wine_reviews.csv
-ozoneNA.csv
-
-# Data files not moved to the right folder
-/content/post/*.csv
-/content/post/*.txt
-/content/post/*.rds
+# Data files
+*.csv
+*.rds
+*.parquet
 
 # Blogdown cache
 /blogdown/
