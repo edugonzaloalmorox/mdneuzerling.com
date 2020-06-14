@@ -1,3 +1,6 @@
+
+[![Netlify Status](https://api.netlify.com/api/v1/badges/9bd7712e-e760-43fa-8910-0f17ead1ebf2/deploy-status)](https://app.netlify.com/sites/mdneuzerling/deploys)
+
 # mdneuzerling.com
 Personal website and blog hosted at [mdneuzerling.com](https://mdneuzerling.com)
 
