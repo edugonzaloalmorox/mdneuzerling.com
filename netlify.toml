@@ -7,3 +7,6 @@
 
 [context.deploy-preview.environment]
   command = "hugo --baseURL $DEPLOY_PRIME_URL"
+
+[[plugins]]
+package = "netlify-plugin-hashfiles"
