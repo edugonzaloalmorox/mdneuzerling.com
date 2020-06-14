@@ -8,7 +8,7 @@ tags:
 images: ["/img/flinders-departures.png"]
 featuredalt: "A tibble of train departures from Flinders Street station"
 output: hugodown::md_document
-rmd_hash: 10a6fec52529da35
+rmd_hash: 5d8f9bd540fd9e35
 
 ---
 
@@ -70,7 +70,7 @@ If I were to let R go through this method I would print `flinders_departures` wi
 
 </div>
 
-This method will print out the attributes if they exist. [`NextMethod()`](https://rdrr.io/r/base/UseMethod.html) will then make R go down the class chain, until it prints like a regular tibble. This is great for debugging. The response of the API call is (more or less) determined by the three attributes I specially print. So it makes life much easier for me to be able relate the parsed tibble to the API response.
+This method will print out the attributes if they exist. [`NextMethod()`](https://rdrr.io/r/base/UseMethod.html) will then make R go down the class chain, until it prints like a regular tibble. This is great for debugging. The response of the API call is (more or less) determined by the three attributes I specifically print. So it makes life much easier for me to be able relate the parsed tibble to the API response.
 
     > flinders_departures
     Request: http://timetableapi.ptv.vic.gov.au/v3/departures/route_type/0/stop/1071?max_results=5&date_utc=2020-05-18T12:14:10&include_cancelled=false 
@@ -111,7 +111,7 @@ A quick heads up: it's not guaranteed that every function will preserve attribut
 <span class='c'>#&gt;  collate  en_AU.UTF-8                 </span>
 <span class='c'>#&gt;  ctype    en_AU.UTF-8                 </span>
 <span class='c'>#&gt;  tz       Australia/Melbourne         </span>
-<span class='c'>#&gt;  date     2020-06-13                  </span>
+<span class='c'>#&gt;  date     2020-06-14                  </span>
 <span class='c'>#&gt; </span>
 <span class='c'>#&gt; ─ Packages ───────────────────────────────────────────────────────────────────</span>
 <span class='c'>#&gt;  package     * version    date       lib source                            </span>

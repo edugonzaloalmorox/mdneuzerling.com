@@ -62,7 +62,7 @@ print.ptvapi <- function(x) {
 }
 ```
 
-This method will print out the attributes if they exist. `NextMethod()` will then make R go down the class chain, until it prints like a regular tibble. This is great for debugging. The response of the API call is (more or less) determined by the three attributes I specially print. So it makes life much easier for me to be able relate the parsed tibble to the API response.
+This method will print out the attributes if they exist. `NextMethod()` will then make R go down the class chain, until it prints like a regular tibble. This is great for debugging. The response of the API call is (more or less) determined by the three attributes I specifically print. So it makes life much easier for me to be able relate the parsed tibble to the API response.
 
 ```
 > flinders_departures
