@@ -22,11 +22,14 @@ body {
 	font-size: 1em;
 }
 
-.post {
-	max-width: 57em; /* Default is 55em */
-}
+/* Default is 55em */
+/* .post {
+	max-width: 57em; 
+} */
+
 
 /* This affects the space between the text of post bodies and the edge of the boxes that contain them */
-.post > div, .post > p {
-	margin: 0 1em; /*Default is 0 4em;*/
-}
+/* Default is 0 4em */
+/* .post > div, .post > p {
+	margin: 0 1em; 
+} */
