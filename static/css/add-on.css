@@ -4,3 +4,29 @@
   is an official part of the theme (ex. Pull Requests) should be included in main.css
   within the formating given.
 */
+
+#site-intro header h1 {
+	font-size: 1.4em;
+}
+
+html {
+	font-size: 1.0em;
+	line-height: 1.4;
+}
+
+body {
+	font-size: 1.2em;
+}
+
+#site-intro main p {
+	font-size: 1em;
+}
+
+.post {
+	max-width: 57em; /* Default is 55em */
+}
+
+/* This affects the space between the text of post bodies and the edge of the boxes that contain them */
+.post > div, .post > p {
+	margin: 0 1em; /*Default is 0 4em;*/
+}
