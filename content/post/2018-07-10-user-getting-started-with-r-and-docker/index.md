@@ -9,11 +9,9 @@ tags: [R, conference]
 images: ["/img/useR/tutorial_one.png"]
 featuredalt: "useR2018 Tutorial One"
 output: hugodown::hugo_document
-rmd_hash: 4ff57520d67c4c01
+rmd_hash: 7b88cd1feae8e26a
 
 ---
-
-**I'm having some trouble getting bash to work with hugodown**
 
 These are my notes for the super helpful tutorial given by [Elizabeth Stark](https://twitter.com/tech_is_dead) on the first day of the UseR 2018 conference. This was an introduction to Docker for R users who have no prior experience with Docker (which was me!).
 
@@ -47,29 +45,31 @@ The first Docker image you ever `run` is likely to be `hello-world`. If you've n
 
 <div class="highlight">
 
-<pre class='chroma'><code class='language-r' data-lang='r'>NA
+<pre class='chroma'><code class='language-r' data-lang='r'>docker run hello-world
 
-<span class='c'>#&gt; </span>
-<span class='c'>#&gt; Hello from Docker!</span>
-<span class='c'>#&gt; This message shows that your installation appears to be working correctly.</span>
-<span class='c'>#&gt; </span>
-<span class='c'>#&gt; To generate this message, Docker took the following steps:</span>
-<span class='c'>#&gt;  1. The Docker client contacted the Docker daemon.</span>
-<span class='c'>#&gt;  2. The Docker daemon pulled the "hello-world" image from the Docker Hub.</span>
-<span class='c'>#&gt;     (amd64)</span>
-<span class='c'>#&gt;  3. The Docker daemon created a new container from that image which runs the</span>
-<span class='c'>#&gt;     executable that produces the output you are currently reading.</span>
-<span class='c'>#&gt;  4. The Docker daemon streamed that output to the Docker client, which sent it</span>
-<span class='c'>#&gt;     to your terminal.</span>
-<span class='c'>#&gt; </span>
-<span class='c'>#&gt; To try something more ambitious, you can run an Ubuntu container with:</span>
-<span class='c'>#&gt;  $ docker run -it ubuntu bash</span>
-<span class='c'>#&gt; </span>
-<span class='c'>#&gt; Share images, automate workflows, and more with a free Docker ID:</span>
-<span class='c'>#&gt;  https://hub.docker.com/</span>
-<span class='c'>#&gt; </span>
-<span class='c'>#&gt; For more examples and ideas, visit:</span>
-<span class='c'>#&gt;  https://docs.docker.com/get-started/</span></code></pre>
+
+#> 
+#> Hello from Docker!
+#> This message shows that your installation appears to be working correctly.
+#> 
+#> To generate this message, Docker took the following steps:
+#>  1. The Docker client contacted the Docker daemon.
+#>  2. The Docker daemon pulled the "hello-world" image from the Docker Hub.
+#>     (amd64)
+#>  3. The Docker daemon created a new container from that image which runs the
+#>     executable that produces the output you are currently reading.
+#>  4. The Docker daemon streamed that output to the Docker client, which sent it
+#>     to your terminal.
+#> 
+#> To try something more ambitious, you can run an Ubuntu container with:
+#>  $ docker run -it ubuntu bash
+#> 
+#> Share images, automate workflows, and more with a free Docker ID:
+#>  https://hub.docker.com/
+#> 
+#> For more examples and ideas, visit:
+#>  https://docs.docker.com/get-started/
+</code></pre>
 
 </div>
 
@@ -84,7 +84,35 @@ Dockerfiles (the source code for images) start `FROM` a base image. We can `COPY
 
 <div class="highlight">
 
-<pre class='chroma'><code class='language-r' data-lang='r'>NA</code></pre>
+<pre class='chroma'><code class='language-r' data-lang='r'>FROM rocker/r-ver:latest
+
+ARG RSTUDIO_VERSION
+ENV PATH=/usr/lib/rstudio-server/bin:$PATH
+
+## Download and install RStudio server & dependencies
+## Attempts to get detect latest version, otherwise falls back to version given in $VER
+## Symlink pandoc, pandoc-citeproc so they are available system-wide
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    file \
+    git \
+    libapparmor1 \
+    libcurl4-openssl-dev \
+    libedit2 \
+    libssl-dev \
+    lsb-release \
+    psmisc \
+    procps \
+    python-setuptools \
+    sudo \
+    wget \
+  && wget -O libssl1.0.0.deb http://ftp.debian.org/debian/pool/main/o/openssl/libssl1.0.0_1.0.1t-1+deb8u8_amd64.deb \
+  && dpkg -i libssl1.0.0.deb \
+  && rm libssl1.0.0.deb \
+  && RSTUDIO_LATEST=$(wget --no-check-certificate -qO- https://s3.amazonaws.com/rstudio-server/current.ver) \
+  && [ -z "$RSTUDIO_VERSION" ] && RSTUDIO_VERSION=$RSTUDIO_LATEST || true \
+  && wget -q http://download2.rstudio.org/rstudio-server-${RSTUDIO_VERSION}-amd64.deb \
+</code></pre>
 
 </div>
 
@@ -97,7 +125,28 @@ Here's the Dockerfile, which tells us what is going on here. Note the base image
 
 <div class="highlight">
 
-<pre class='chroma'><code class='language-r' data-lang='r'>NA</code></pre>
+<pre class='chroma'><code class='language-r' data-lang='r'># Base image https://hub.docker.com/u/rocker/
+FROM rocker/rstudio
+
+## Install extra R packages using requirements.R
+## Specify requirements as R install commands e.g.
+## 
+## install.packages("<myfavouritepacakge>") or
+## devtools::install("SymbolixAU/googleway")
+
+## Copy requirements.R to container directory /tmp
+COPY ./DockerConfig/requirements.R /tmp/requirements.R 
+## install required libs on container
+RUN Rscript /tmp/requirements.R
+
+# create an R user
+ENV USER rstudio
+
+## Copy your working files over
+## The $USER defaults to `rstudio` but you can change this at runtime
+COPY ./Analysis /home/$USER/Analysis
+COPY ./Data /home/$USER/Data
+</code></pre>
 
 </div>
 
@@ -105,7 +154,8 @@ Run the following command to `build` the image:
 
 <div class="highlight">
 
-<pre class='chroma'><code class='language-r' data-lang='r'>NA</code></pre>
+<pre class='chroma'><code class='language-r' data-lang='r'>docker build --rm --force-rm -t rstudio/hello-world .
+</code></pre>
 
 </div>
 
@@ -113,10 +163,12 @@ The `--rm --force-rm` command tells Docker to delete the container once it's run
 
 <div class="highlight">
 
-<pre class='chroma'><code class='language-r' data-lang='r'>NA
+<pre class='chroma'><code class='language-r' data-lang='r'>docker image list
 
-<span class='c'>#&gt; REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE</span>
-<span class='c'>#&gt; hello-world         latest              bf756fb1ae65        5 months ago        13.3kB</span></code></pre>
+
+#> REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+#> hello-world         latest              bf756fb1ae65        5 months ago        13.3kB
+</code></pre>
 
 </div>
 
@@ -124,7 +176,8 @@ Now we can `run` the image. We `--name` the container `hello-world`. You may be 
 
 <div class="highlight">
 
-<pre class='chroma'><code class='language-r' data-lang='r'>NA</code></pre>
+<pre class='chroma'><code class='language-r' data-lang='r'>docker run -d --rm -p 28787:8787 --name hello-world rstudio/hello-world
+</code></pre>
 
 </div>
 
@@ -140,7 +193,8 @@ We can stop the container with the `stop` command. This will interrupt the RStud
 
 <div class="highlight">
 
-<pre class='chroma'><code class='language-r' data-lang='r'>NA</code></pre>
+<pre class='chroma'><code class='language-r' data-lang='r'>docker stop hello-world
+</code></pre>
 
 </div>
 
@@ -201,7 +255,8 @@ You can click on the instance and then on the "Connect" button to view detailed 
 
 <div class="highlight">
 
-<pre class='chroma'><code class='language-r' data-lang='r'>NA</code></pre>
+<pre class='chroma'><code class='language-r' data-lang='r'>sudo apt-get update && sudo apt-get install -y docker-io
+</code></pre>
 
 </div>
 
@@ -209,7 +264,8 @@ You can test that the installation works by running `sudo docker run hello-world
 
 <div class="highlight">
 
-<pre class='chroma'><code class='language-r' data-lang='r'>NA</code></pre>
+<pre class='chroma'><code class='language-r' data-lang='r'>sudo docker pull rocker/rstudio
+</code></pre>
 
 </div>
 
@@ -217,7 +273,8 @@ It's a big install (around a gigabyte) so you may have to wait a few minutes. No
 
 <div class="highlight">
 
-<pre class='chroma'><code class='language-r' data-lang='r'>NA</code></pre>
+<pre class='chroma'><code class='language-r' data-lang='r'>sudo docker run --rm -p 8787:8787 --name rstudio rocker/rstudio
+</code></pre>
 
 </div>
 
@@ -257,7 +314,7 @@ That's the end of the workshop. Many thanks to Elizabeth for her time, and for a
 <span class='c'>#&gt;  collate  en_AU.UTF-8                 </span>
 <span class='c'>#&gt;  ctype    en_AU.UTF-8                 </span>
 <span class='c'>#&gt;  tz       Australia/Melbourne         </span>
-<span class='c'>#&gt;  date     2020-06-13                  </span>
+<span class='c'>#&gt;  date     2020-06-20                  </span>
 <span class='c'>#&gt; </span>
 <span class='c'>#&gt; ─ Packages ───────────────────────────────────────────────────────────────────</span>
 <span class='c'>#&gt;  package     * version    date       lib source                            </span>
@@ -269,14 +326,13 @@ That's the end of the workshop. Many thanks to Elizabeth for her time, and for a
 <span class='c'>#&gt;  desc          1.2.0      2018-05-01 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  devtools      2.3.0      2020-04-10 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  digest        0.6.25     2020-02-23 [1] CRAN (R 4.0.0)                    </span>
-<span class='c'>#&gt;  downlit       0.0.0.9000 2020-06-12 [1] Github (r-lib/downlit@87fb1af)    </span>
 <span class='c'>#&gt;  ellipsis      0.3.1      2020-05-15 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  evaluate      0.14       2019-05-28 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  fansi         0.4.1      2020-01-08 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  fs            1.4.1      2020-04-04 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  glue          1.4.1      2020-05-13 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  htmltools     0.4.0      2019-10-04 [1] CRAN (R 4.0.0)                    </span>
-<span class='c'>#&gt;  hugodown      0.0.0.9000 2020-06-12 [1] Github (r-lib/hugodown@6812ada)   </span>
+<span class='c'>#&gt;  hugodown      0.0.0.9000 2020-06-17 [1] local                             </span>
 <span class='c'>#&gt;  knitr         1.28       2020-02-06 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  magrittr      1.5        2014-11-22 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  memoise       1.1.0.9000 2020-05-09 [1] Github (hadley/memoise@4aefd9f)   </span>
@@ -289,7 +345,7 @@ That's the end of the workshop. Many thanks to Elizabeth for her time, and for a
 <span class='c'>#&gt;  Rcpp          1.0.4.6    2020-04-09 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  remotes       2.1.1      2020-02-15 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  rlang         0.4.6      2020-05-02 [1] CRAN (R 4.0.0)                    </span>
-<span class='c'>#&gt;  rmarkdown     2.2.3      2020-06-12 [1] Github (rstudio/rmarkdown@4ee96c8)</span>
+<span class='c'>#&gt;  rmarkdown     2.2.5      2020-06-15 [1] Github (rstudio/rmarkdown@f1fd6e4)</span>
 <span class='c'>#&gt;  rprojroot     1.3-2      2018-01-03 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  sessioninfo   1.1.1      2018-11-05 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  stringi       1.4.6      2020-02-17 [1] CRAN (R 4.0.0)                    </span>

@@ -11,8 +11,6 @@ featuredalt: "useR2018 Tutorial One"
 output: hugodown::hugo_document
 ---
 
-**I'm having some trouble getting bash to work with hugodown**
-
 These are my notes for the super helpful tutorial given by 
 [Elizabeth Stark](https://twitter.com/tech_is_dead) on the first day of the
 UseR 2018 conference. This was an introduction to Docker for R users who have 
