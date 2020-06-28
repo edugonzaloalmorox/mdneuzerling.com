@@ -10,7 +10,7 @@ featuredalt: |
     A comment on a GitHub Actions pull request, giving various numeric metrics.
     The commenter is "github-actions", and is labelled as a "bot".
 output: hugodown::md_document
-rmd_hash: 2c9112da8f88bd98
+rmd_hash: 1b8960eb4cf8be16
 
 ---
 
@@ -384,9 +384,9 @@ This is magic stuff, right? But it requires models to be implemented as microser
 Serving machine learning models
 -------------------------------
 
-Python has "solved" this problem. Tools like [mlflow](https://mlflow.org/) and [kubeflow](https://www.kubeflow.org/) abstract away Python models exactly like that. There's supposedly R support (directly in mlflow and with [Seldon Core](https://www.seldon.io/tech/products/core/) through Kubeflow) but documentation and examples are hard to find. (My impression here is that these are Python tools, with token support for R, but **please** tell me if I'm wrong. I want to be wrong.)
+Python has "solved" this problem. Tools like [mlflow](https://mlflow.org/) and [kubeflow](https://www.kubeflow.org/) abstract away Python models exactly like that. There's supposedly R support (directly in mlflow and through [Seldon Core](https://www.seldon.io/tech/products/core/) with Kubeflow) but documentation and examples are hard to find. (My impression here is that these are Python tools, with token support for R, but **please** tell me if I'm wrong. I want to be wrong.)
 
-It's not just about language popularity: model serving is a bit easier in Python because you can rip out a scikit-learn or pytorch object and stick it in a serving layer, whereas there's no uniform machine learning framework for R (although plenty of candidates). But this can be a limitation, since it makes it harder to move outside of those frameworks. I've trained models in Python using obscure modules that are no where near the major frameworks, and if I wanted to deploy those through a popular serving tool I would have to twist them into a scikit-learn object. At that point, the tools are leading the machine learning, and not the other way around.
+Model serving is a bit easier in Python because you have a handful of major frameworks; you can rip out a scikit-learn or pytorch object and stick it in a serving layer. But this can be a limitation, since it makes it hard to work outside of those frameworks. I've trained models in Python using obscure modules that are no where near the major frameworks, and if I wanted to deploy those through a popular serving tool I would have to twist them into a scikit-learn object. At that point, the tools are leading the machine learning, and not the other way around.
 
 I do like the approach that mlflow takes to serving R models through the `carrier` package: the user declares a predict function, along with a list of required artefacts. It's a little more fiddly than just uploading a scikit-learn object, and I haven't properly tested its limitations, but I *much prefer* the idea behind this approach. There's plenty of scope here for automated dependency detection, just like how `drake` does it, and it's as flexible as it gets.
 
@@ -407,7 +407,7 @@ I'm yet to see a fundamental reason why you can't put R models in production, de
 <span class='c'>#&gt;  collate  en_AU.UTF-8                 </span>
 <span class='c'>#&gt;  ctype    en_AU.UTF-8                 </span>
 <span class='c'>#&gt;  tz       Australia/Melbourne         </span>
-<span class='c'>#&gt;  date     2020-06-28                  </span>
+<span class='c'>#&gt;  date     2020-06-29                  </span>
 <span class='c'>#&gt; </span>
 <span class='c'>#&gt; ─ Packages ───────────────────────────────────────────────────────────────────</span>
 <span class='c'>#&gt;  package     * version    date       lib source                            </span>
