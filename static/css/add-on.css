@@ -14,8 +14,8 @@
 	line-height: 1.4;
 } */
 
-body {
-	font-size: 1.2em;
+body, input, select, textarea {
+	line-height: 1.4em;
 }
 
 #site-intro main p {
