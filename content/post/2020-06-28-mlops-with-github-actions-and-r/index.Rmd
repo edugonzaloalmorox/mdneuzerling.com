@@ -62,7 +62,7 @@ jobs:
 
 But I wanted to go a bit further and ensure I was creating a reproducible environment, and also using a Linux runner with a fast setup time.
 
-Reproducibility matters here, and that means we need to lock down the operating system, R version, and package versions. I've used [renv](https://rstudio.github.io/renv/) to lock down the package versions, and I'll specify the operating system and R version in the GitHub Actions workflows themselves. By running `renv::restore()` I can install the packages with the exact same versions I used when developing my model locally.
+Reproducibility matters here, and that means we need to lock down the operating system, R version, and package versions. I've used [renv](https://rstudio.github.io/renv/) to lock down the package versions, and I'll specify the operating system and R version in the GitHub Actions workflows themselves. I initialise the `renv` lockfile and associated objects with `renv::activate()`. By running `renv::restore()` I can install the packages with the exact same versions I used when developing my model locally.
 
 For most purposes, MacOS is a great candidate for a runner. But my development environment is Linux, and I wanted my workflows to match. Moreover, for billing in private repositories, 1 minute of a MacOS job is worth **10 minutes** of a Linux job. The problem with using a Linux runner is that R packages are installed from source, and that can take a long time. On a similar project, I was looking at a 32 minute `R CMD check` workflow on Linux, versus 4 minutes on MacOS!
 

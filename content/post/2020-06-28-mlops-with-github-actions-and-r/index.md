@@ -10,7 +10,7 @@ featuredalt: |
     A comment on a GitHub Actions pull request, giving various numeric metrics.
     The commenter is "github-actions", and is labelled as a "bot".
 output: hugodown::md_document
-rmd_hash: 1b8960eb4cf8be16
+rmd_hash: 7bed5163094720b6
 
 ---
 
@@ -63,7 +63,7 @@ The `usethis` package makes this incredibly easy. If you've already set up git i
 
 But I wanted to go a bit further and ensure I was creating a reproducible environment, and also using a Linux runner with a fast setup time.
 
-Reproducibility matters here, and that means we need to lock down the operating system, R version, and package versions. I've used [renv](https://rstudio.github.io/renv/) to lock down the package versions, and I'll specify the operating system and R version in the GitHub Actions workflows themselves. By running [`renv::restore()`](https://rstudio.github.io/renv//reference/restore.html) I can install the packages with the exact same versions I used when developing my model locally.
+Reproducibility matters here, and that means we need to lock down the operating system, R version, and package versions. I've used [renv](https://rstudio.github.io/renv/) to lock down the package versions, and I'll specify the operating system and R version in the GitHub Actions workflows themselves. I initialise the `renv` lockfile and associated objects with [`renv::activate()`](https://rstudio.github.io/renv//reference/activate.html). By running [`renv::restore()`](https://rstudio.github.io/renv//reference/restore.html) I can install the packages with the exact same versions I used when developing my model locally.
 
 For most purposes, MacOS is a great candidate for a runner. But my development environment is Linux, and I wanted my workflows to match. Moreover, for billing in private repositories, 1 minute of a MacOS job is worth **10 minutes** of a Linux job. The problem with using a Linux runner is that R packages are installed from source, and that can take a long time. On a similar project, I was looking at a 32 minute `R CMD check` workflow on Linux, versus 4 minutes on MacOS!
 
@@ -407,7 +407,7 @@ I'm yet to see a fundamental reason why you can't put R models in production, de
 <span class='c'>#&gt;  collate  en_AU.UTF-8                 </span>
 <span class='c'>#&gt;  ctype    en_AU.UTF-8                 </span>
 <span class='c'>#&gt;  tz       Australia/Melbourne         </span>
-<span class='c'>#&gt;  date     2020-06-29                  </span>
+<span class='c'>#&gt;  date     2020-06-30                  </span>
 <span class='c'>#&gt; </span>
 <span class='c'>#&gt; ─ Packages ───────────────────────────────────────────────────────────────────</span>
 <span class='c'>#&gt;  package     * version    date       lib source                            </span>
