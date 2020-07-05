@@ -1,15 +1,15 @@
 ---
 title: Deploying R Models with MLflow and Docker
 author: ~
-date: '2020-06-28'
+date: '2020-07-05'
 slug: deploying-r-models-with-mlflow-and-docker
 tags:
     - R
 images: ["/img/containers.jpeg"]
 featuredalt: |
-    A 
+    Shipping containers
 output: hugodown::md_document
-rmd_hash: 32f871eb044a3ce6
+rmd_hash: 8e3a6aac79e53e98
 
 ---
 
@@ -290,17 +290,7 @@ I have a method for taking a character vector of functions and including them in
 
 <div class="highlight">
 
-<pre class='chroma'><code class='language-r' data-lang='r'><span class='c'># Already defined: model_package_path</span>
-<span class='k'>devtools</span>::<span class='nf'><a href='https://devtools.r-lib.org//reference/load_all.html'>load_all</a></span>(<span class='k'>model_package_path</span>)
-<span class='c'>#&gt; Loading ReviewSentimentMLflow</span>
-<span class='c'>#&gt; </span>
-<span class='c'>#&gt; Attaching package: 'testthat'</span>
-<span class='c'>#&gt; The following objects are masked from 'package:rlang':</span>
-<span class='c'>#&gt; </span>
-<span class='c'>#&gt;     is_false, is_null, is_true</span>
-<span class='k'>plan</span> <span class='o'>&lt;-</span> <span class='nf'>training_plan</span>()
-<span class='k'>drake</span>::<span class='nf'><a href='https://docs.ropensci.org/drake/reference/make.html'>make</a></span>(<span class='k'>plan</span>)
-<span class='c'>#&gt; <span style='color: #00BB00;'>✔</span><span> All targets are already up to date.</span></span>
+<pre class='chroma'><code class='language-r' data-lang='r'><span class='c'># Already defined and loaded: model_package_path</span>
 <span class='nf'>loadd</span>(<span class='k'>review_rf</span>, <span class='k'>vectoriser</span>, <span class='k'>tfidf</span>)
 <span class='k'>package_name</span> <span class='o'>&lt;-</span> <span class='k'>pkgload</span>::<span class='nf'><a href='https://rdrr.io/pkg/pkgload/man/packages.html'>pkg_name</a></span>(<span class='k'>model_package_path</span>)
 <span class='k'>package_namespace_ls</span> <span class='o'>&lt;-</span> <span class='nf'><a href='https://rdrr.io/r/base/ls.html'>ls</a></span>(<span class='nf'><a href='https://rdrr.io/r/base/ns-reflect.html'>getNamespace</a></span>(<span class='k'>package_name</span>))
@@ -321,8 +311,8 @@ I have a method for taking a character vector of functions and including them in
 <span class='c'>#&gt; Registered S3 method overwritten by 'pryr':</span>
 <span class='c'>#&gt;   method      from</span>
 <span class='c'>#&gt;   print.bytes Rcpp</span>
-<span class='c'>#&gt; &lt;crate&gt; 8.04 MB</span>
-<span class='c'>#&gt; * function: 20 kB</span>
+<span class='c'>#&gt; &lt;crate&gt; 8.03 MB</span>
+<span class='c'>#&gt; * function: 18.1 kB</span>
 <span class='c'>#&gt; * `create_tfidf`: 8.02 MB</span>
 <span class='c'>#&gt; * `create_vocabulary`: 8.02 MB</span>
 <span class='c'>#&gt; * `download_and_read_data`: 8.02 MB</span>

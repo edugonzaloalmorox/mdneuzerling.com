@@ -255,13 +255,14 @@ I have a method for taking a character vector of functions and including them in
 
 ```{r model-package-path, include = FALSE}
 model_package_path <- normalizePath("~/git/ReviewSentimentMLflow")
+devtools::load_all(model_package_path)
+plan <- training_plan()
+plan <- plan[plan$target != "save_model",] # don't need to export a model now
+drake::make(plan)
 ```
 
 ```{r crate-everything}
-# Already defined: model_package_path
-devtools::load_all(model_package_path)
-plan <- training_plan()
-drake::make(plan)
+# Already defined and loaded: model_package_path
 loadd(review_rf, vectoriser, tfidf)
 package_name <- pkgload::pkg_name(model_package_path)
 package_namespace_ls <- ls(getNamespace(package_name))
