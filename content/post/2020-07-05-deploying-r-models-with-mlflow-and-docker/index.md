@@ -9,7 +9,7 @@ images: ["/img/containers.jpeg"]
 featuredalt: |
     Shipping containers
 output: hugodown::md_document
-rmd_hash: 8e3a6aac79e53e98
+rmd_hash: 9701353829e2be17
 
 ---
 
@@ -271,6 +271,32 @@ I'm giving R here an expression [`set_env(!!sym(x))`](https://rlang.r-lib.org/re
 
 </div>
 
+I can see how this expression would be evaluated by directly inspecting the abstract syntax tree (AST) with `lobstr`. First, letting `x <- "triple"` and without using `!!`:
+
+<div class="highlight">
+
+<pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>lobstr</span>::<span class='nf'><a href='https://rdrr.io/pkg/lobstr/man/ast.html'>ast</a></span>(<span class='nf'><a href='https://rlang.r-lib.org/reference/nse-defuse.html'>expr</a></span>(<span class='nf'><a href='https://rlang.r-lib.org/reference/get_env.html'>set_env</a></span>(<span class='nf'><a href='https://rlang.r-lib.org/reference/sym.html'>sym</a></span>(<span class='s'>"triple"</span>))))
+<span class='c'>#&gt; <span style='color: #FFAF00;'>█</span><span>─</span><span style='color: #BB00BB;font-weight: bold;'>expr</span><span> </span></span>
+<span class='c'>#&gt; └─<span style='color: #FFAF00;'>█</span><span>─</span><span style='color: #BB00BB;font-weight: bold;'>set_env</span><span> </span></span>
+<span class='c'>#&gt;   └─<span style='color: #FFAF00;'>█</span><span>─</span><span style='color: #BB00BB;font-weight: bold;'>sym</span><span> </span></span>
+<span class='c'>#&gt;     └─"triple"</span></code></pre>
+
+</div>
+
+...and now with the `!!`:
+
+<div class="highlight">
+
+<pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>x</span> <span class='o'>&lt;-</span> <span class='s'>"triple"</span>
+<span class='k'>lobstr</span>::<span class='nf'><a href='https://rdrr.io/pkg/lobstr/man/ast.html'>ast</a></span>(<span class='nf'><a href='https://rlang.r-lib.org/reference/nse-defuse.html'>expr</a></span>(<span class='nf'><a href='https://rlang.r-lib.org/reference/get_env.html'>set_env</a></span>(<span class='o'>!</span><span class='o'>!</span><span class='nf'><a href='https://rlang.r-lib.org/reference/sym.html'>sym</a></span>(<span class='s'>"triple"</span>))))
+<span class='c'>#&gt; <span style='color: #FFAF00;'>█</span><span>─</span><span style='color: #BB00BB;font-weight: bold;'>expr</span><span> </span></span>
+<span class='c'>#&gt; └─<span style='color: #FFAF00;'>█</span><span>─</span><span style='color: #BB00BB;font-weight: bold;'>set_env</span><span> </span></span>
+<span class='c'>#&gt;   └─<span style='color: #BB00BB;font-weight: bold;'>triple</span></span></code></pre>
+
+</div>
+
+The `!!` forces the evaluation of the AST at [`sym("triple")`](https://rlang.r-lib.org/reference/sym.html), without evaluating the rest of the expression. So the expression I have at the end is just [`set_env(triple)`](https://rlang.r-lib.org/reference/get_env.html).
+
 I've now got an expression that I can evaluate when I want and in whatever environment I want. I'm generating code with code! And with `lapply` I can generate an expression like this for every function, and end up with a named list of expressions.
 
 I've saved these expressions so that I can evaluate them in the call to `crate`, which will copy every function into the `crate` environment. I do this with `!!!` (or "bang-bang-bang"). This forces the evaluation of every element in my list of expressions and uses them as arguments to the `crate` function:
@@ -452,7 +478,7 @@ In particular, `carrier` could be improved by
 2.  supporting the importation of all declared imports within a NAMESPACE file (which would cover the above `%>%` issue), and
 3.  providing better support for S3 dispatch.
 
-I'd be cautious of doing this sort of global package import with arbitrary packages (it would fall apart as soon as it encounters compiled code), but I think it's suitable for package workflows or "models as packages".
+I'd be cautious of doing this sort of global package import with arbitrary packages (it would fall apart as soon as it encounters compiled code), but I think it's suitable for package workflows or "models as packages". I've also heard of [a package called `defer`](https://github.com/lbartnik/defer) which may do some of the above, although I haven't looked into it.
 
 I've outlined some approaches here for accommodating a package workflow with `carrier`, so there's possibly some room here for me to contribute.
 
@@ -520,6 +546,7 @@ I've outlined some approaches here for accommodating a package workflow with `ca
 <span class='c'>#&gt;    lattice                 0.20-41    2020-04-02 [4]</span>
 <span class='c'>#&gt;    lgr                     0.3.4      2020-03-20 [1]</span>
 <span class='c'>#&gt;    lifecycle               0.2.0      2020-03-06 [1]</span>
+<span class='c'>#&gt;    lobstr                  1.1.1      2019-07-02 [1]</span>
 <span class='c'>#&gt;    magrittr                1.5        2014-11-22 [1]</span>
 <span class='c'>#&gt;    Matrix                  1.2-18     2019-11-27 [4]</span>
 <span class='c'>#&gt;    memoise                 1.1.0.9000 2020-05-09 [1]</span>
@@ -613,6 +640,7 @@ I've outlined some approaches here for accommodating a package workflow with `ca
 <span class='c'>#&gt;  CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  Github (r-lib/hugodown@f7df565)   </span>
+<span class='c'>#&gt;  CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  CRAN (R 4.0.0)                    </span>
