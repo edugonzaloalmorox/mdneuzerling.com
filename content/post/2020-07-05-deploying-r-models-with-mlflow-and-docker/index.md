@@ -9,7 +9,7 @@ images: ["/img/containers.jpeg"]
 featuredalt: |
     Shipping containers
 output: hugodown::md_document
-rmd_hash: 9701353829e2be17
+rmd_hash: 01aeb04dbf80e40d
 
 ---
 
@@ -40,7 +40,7 @@ Let's take a look at packaging up a simple linear regression with `crate`:
 
 </div>
 
-A `crate` function call consists of a main function, which has to be a "freshly" defined within the call, along with a list of objects that accompany the function. I can serialise this `packaged_starwars_height_lm` crate and move it to another R process, and the linear model I trained will move along with it. Serialising in MLflow is done with the S3 generic [`mlflow::mlflow_save_model`](https://rdrr.io/pkg/mlflow/man/mlflow_save_model.html).
+A `crate` function call consists of a main function, which has to be "freshly" defined within the call, along with a list of objects that accompany the function. I can serialise this `packaged_starwars_height_lm` crate and move it to another R process, and the linear model I trained will move along with it. Serialising in MLflow is done with the S3 generic [`mlflow::mlflow_save_model`](https://rdrr.io/pkg/mlflow/man/mlflow_save_model.html).
 
 A couple of things to note here: I have to be very explicit about how I use functions in `crate`. Just typing `predict` wouldn't do here: I have to use the specific `predict.lm` method for linear models. I also have to declare that it's from the `stats` package. According to the help file, the accompanying objects will be automatically named after themselves if no name is provided, but I haven't found this to be true.
 
