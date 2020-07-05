@@ -9,7 +9,7 @@ images: ["/img/containers.jpeg"]
 featuredalt: |
     Shipping containers
 output: hugodown::md_document
-rmd_hash: 01aeb04dbf80e40d
+rmd_hash: e574ee957791fbfd
 
 ---
 
@@ -106,7 +106,11 @@ If I'm using a package workflow, then the obvious solution is to install the pac
 
 </div>
 
-These other artefacts --- `review_rf`, `vectoriser` and `tfidf` --- are not part of the package. They are model artefacts generated during training. `crate` can handle those as is. I can serialise `crated_model` with `mlflow_save_model`, and then everything can be exported to another platform. There are a few helper functions used in the definition of `sentiment`, but as long as that `ReviewSentimentMLflow` package is installed on that platform I can serve the model with MLflow using the terminal command `mlflow models serve`.
+The objects I specify --- `review_rf`, `vectoriser` and `tfidf` --- are not part of the package. They are model artefacts generated during training. `crate` can handle those as is.
+
+That `sentiment` function is where the problem lies. It's one of the functions in my package. It uses the `vectoriser` and `tfidf` to process text into a format that can be handled by the random forest predictor. It calls on other package functions to do this, and it's these underlying dependencies that will cause issues with `crate`.
+
+I can serialise `crated_model` with `mlflow_save_model`, and then everything can be exported to another platform. There are a few helper functions used in the definition of `sentiment`, but as long as that `ReviewSentimentMLflow` package is installed on that platform I can serve the model with MLflow using the terminal command `mlflow models serve`.
 
 But the packages I use for my models are highly specific to a certain dataset and use case; they certainly aren't going on CRAN. The underlying motivation here is that I want to be able to execute my model on a machine that isn't my computer, so that means I need to be able to move my package along with the `crated_model`.
 
@@ -395,7 +399,7 @@ I can now export this packaged model with [`mlflow::mlflow_save_model(packaged_m
 
 A couple of differences between this Dockerfile and the first one:
 
--   I'm only copying one file from the model package --- the `renv.lock` file. That is, the only information I'm baking into the image from the model package is \*the list of package dependencies.
+-   I'm only copying one file from the model package --- the `renv.lock` file. That is, the only information I'm baking into the image from the model package is the list of package dependencies.
 -   I'm no longer installing the model package into the image.
 -   I'm no longer running `mlflow models serve` within the image itself. The image is just an environment in which commands are run.
 
@@ -463,6 +467,8 @@ It's a lot of work, declaring all of these dependencies, but now my `MLflow` mod
 
 </div>
 
+This works, but getting all of those dependencies into `crate` looks very hacky.
+
 MLflow and R
 ------------
 
@@ -497,7 +503,7 @@ I've outlined some approaches here for accommodating a package workflow with `ca
 <span class='c'>#&gt;  collate  en_AU.UTF-8                 </span>
 <span class='c'>#&gt;  ctype    en_AU.UTF-8                 </span>
 <span class='c'>#&gt;  tz       Australia/Melbourne         </span>
-<span class='c'>#&gt;  date     2020-07-05                  </span>
+<span class='c'>#&gt;  date     2020-07-06                  </span>
 <span class='c'>#&gt; </span>
 <span class='c'>#&gt; ─ Packages ───────────────────────────────────────────────────────────────────</span>
 <span class='c'>#&gt;  ! package               * version    date       lib</span>

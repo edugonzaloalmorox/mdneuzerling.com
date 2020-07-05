@@ -88,7 +88,11 @@ crated_model = carrier::crate(
 )
 ```
 
-These other artefacts --- `review_rf`, `vectoriser` and `tfidf` --- are not part of the package. They are model artefacts generated during training. `crate` can handle those as is. I can serialise `crated_model` with `mlflow_save_model`, and then everything can be exported to another platform. There are a few helper functions used in the definition of `sentiment`, but as long as that `ReviewSentimentMLflow` package is installed on that platform I can serve the model with MLflow using the terminal command `mlflow models serve`.
+The objects I specify --- `review_rf`, `vectoriser` and `tfidf` --- are not part of the package. They are model artefacts generated during training. `crate` can handle those as is. 
+
+That `sentiment` function is where the problem lies. It's one of the functions in my package. It uses the `vectoriser` and `tfidf` to process text into a format that can be handled by the random forest predictor. It calls on other package functions to do this, and it's these underlying dependencies that will cause issues with `crate`.
+
+I can serialise `crated_model` with `mlflow_save_model`, and then everything can be exported to another platform. There are a few helper functions used in the definition of `sentiment`, but as long as that `ReviewSentimentMLflow` package is installed on that platform I can serve the model with MLflow using the terminal command `mlflow models serve`.
 
 But the packages I use for my models are highly specific to a certain dataset and use case; they certainly aren't going on CRAN. The underlying motivation here is that I want to be able to execute my model on a machine that isn't my computer, so that means I need to be able to move my package along with the `crated_model`.
 
@@ -335,7 +339,7 @@ ENTRYPOINT ["/usr/bin/env"]
 
 A couple of differences between this Dockerfile and the first one:
 
-* I'm only copying one file from the model package --- the `renv.lock` file. That is, the only information I'm baking into the image from the model package is *the list of package dependencies.
+* I'm only copying one file from the model package --- the `renv.lock` file. That is, the only information I'm baking into the image from the model package is the list of package dependencies.
 * I'm no longer installing the model package into the image.
 * I'm no longer running `mlflow models serve` within the image itself. The image is just an environment in which commands are run.
 
@@ -388,6 +392,8 @@ It's a lot of work, declaring all of these dependencies, but now my `MLflow` mod
 curl -X POST "http://127.0.0.1:5000/predict/" -H  "accept: application/json" -H  "Content-Type: application/json" -d "\"love\""
 # "good"
 ```
+
+This works, but getting all of those dependencies into `crate` looks very hacky.
 
 ## MLflow and R
 
