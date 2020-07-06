@@ -9,7 +9,7 @@ images: ["/img/containers.jpeg"]
 featuredalt: |
     Shipping containers
 output: hugodown::md_document
-rmd_hash: 0224157ddefbb005
+rmd_hash: a3e89f14d5d5343f
 
 ---
 
@@ -502,11 +502,41 @@ Now my `crate` call looks like this:
   tfidf = <span class='k'>tfidf</span>,
   <span class='o'>!</span><span class='o'>!</span><span class='o'>!</span><span class='k'>package_contents_to_set_env</span>,
   <span class='o'>!</span><span class='o'>!</span><span class='o'>!</span><span class='k'>imported_functions_to_declare</span>
-)</code></pre>
+)
+<span class='k'>crated_model</span>
+<span class='c'>#&gt; &lt;crate&gt; 8.1 MB</span>
+<span class='c'>#&gt; * function: 12 kB</span>
+<span class='c'>#&gt; * `create_tfidf`: 8.09 MB</span>
+<span class='c'>#&gt; * `create_vocabulary`: 8.09 MB</span>
+<span class='c'>#&gt; * `download_and_read_data`: 8.09 MB</span>
+<span class='c'>#&gt; * `execution_plan`: 8.09 MB</span>
+<span class='c'>#&gt; * `generate_roc`: 8.09 MB</span>
+<span class='c'>#&gt; * `map_to_dtm`: 8.09 MB</span>
+<span class='c'>#&gt; * `new_data_to_be_scored`: 8.09 MB</span>
+<span class='c'>#&gt; * `read_review_file`: 8.09 MB</span>
+<span class='c'>#&gt; * `sentiment`: 8.09 MB</span>
+<span class='c'>#&gt; * `stem_tokeniser`: 8.09 MB</span>
+<span class='c'>#&gt; * `text_preprocessor`: 8.09 MB</span>
+<span class='c'>#&gt; * `training_plan`: 8.09 MB</span>
+<span class='c'>#&gt; * `review_rf`: 7.44 MB</span>
+<span class='c'>#&gt; * `tfidf`: 280 kB</span>
+<span class='c'>#&gt; * `vectoriser`: 85.8 kB</span>
+<span class='c'>#&gt; * `%&gt;%`: 30.8 kB</span>
+<span class='c'>#&gt; * `system.file`: 17.5 kB</span>
+<span class='c'>#&gt; * `trigger`: 14.5 kB</span>
+<span class='c'>#&gt; * `library.dynam.unload`: 8.31 kB</span>
+<span class='c'>#&gt; * `randomForest`: 1.14 kB</span>
+<span class='c'>#&gt; function(review) {</span>
+<span class='c'>#&gt;     sentiment(review, review_rf, vectoriser, tfidf)</span>
+<span class='c'>#&gt;   }</span></code></pre>
 
 </div>
 
-If I run my environment Docker image and serve this crated model, it works! Thank you Nick!
+If I run my environment Docker image and serve this crated model, it works! It's still a bit hacky, but not as bad as manually declaring every imported function. And, because `randomForest::randomForest` is an imported function in the NAMESPACE, that carries along the S3 method `predict.randomForest`. Which means that I can just use `predict` in my internal funtions, and R will be able to dispatch correctly.
+
+This only works because in a package workflow I declare my imported functions carefully with Roxygen tags. So the namespace contains lines like `importFrom(randomForest,randomForest)`. And if I'm not importing functions, I'm using them with double colons like `dplyr::mutate`. Because of this, `crate` knows where to find the functions I'm using.
+
+Thank you so much Nick!
 
 MLflow and R
 ------------
