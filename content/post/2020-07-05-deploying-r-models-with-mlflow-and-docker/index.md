@@ -9,7 +9,7 @@ images: ["/img/containers.jpeg"]
 featuredalt: |
     Shipping containers
 output: hugodown::md_document
-rmd_hash: e574ee957791fbfd
+rmd_hash: 75890f900d3c2ed5
 
 ---
 
@@ -469,10 +469,49 @@ It's a lot of work, declaring all of these dependencies, but now my `MLflow` mod
 
 This works, but getting all of those dependencies into `crate` looks very hacky.
 
+### But this does work!
+
+After I published this post, [Nick DiQuattro](https://twitter.com/ndiquattro) came up with a great idea: stick the environment of the model package into the `crate` function. And it works!
+
+According to the documentation for `rlang::ns_env`, the package namespace is an environment where all of the functions of the package live. "The parent environments of namespaces are the `imports` environments, which contain all the functions imported from other packages". So I'm going to take those imported functions and stick them into `crate`, without having to manually declare each one.
+
+The process is similar to defining `package_contents_to_set_env`:
+
+<div class="highlight">
+
+<pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>import_env</span> <span class='o'>&lt;-</span> <span class='nf'><a href='https://rlang.r-lib.org/reference/ns_env.html'>ns_imports_env</a></span>(<span class='k'>package_name</span>)
+<span class='k'>imported_functions_names</span> <span class='o'>&lt;-</span> <span class='nf'><a href='https://rdrr.io/r/base/ls.html'>ls</a></span>(<span class='k'>import_env</span>)
+<span class='k'>imported_functions_to_declare</span> <span class='o'>&lt;-</span> <span class='nf'><a href='https://rdrr.io/r/base/lapply.html'>lapply</a></span>(
+  <span class='k'>imported_functions_names</span>,
+  <span class='nf'>function</span>(<span class='k'>x</span>) <span class='nf'><a href='https://rlang.r-lib.org/reference/nse-defuse.html'>expr</a></span>(<span class='k'>import_env</span>[[<span class='o'>!</span><span class='o'>!</span><span class='k'>x</span>]])
+)
+<span class='nf'><a href='https://rdrr.io/r/base/names.html'>names</a></span>(<span class='k'>imported_functions_to_declare</span>) <span class='o'>&lt;-</span> <span class='k'>imported_functions_names</span></code></pre>
+
+</div>
+
+Now my `crate` call looks like this:
+
+<div class="highlight">
+
+<pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>crated_model</span> <span class='o'>&lt;-</span> <span class='k'>carrier</span>::<span class='nf'><a href='https://rdrr.io/pkg/carrier/man/crate.html'>crate</a></span>(
+  <span class='nf'>function</span>(<span class='k'>review</span>) {
+    <span class='nf'>sentiment</span>(<span class='k'>review</span>, <span class='k'>review_rf</span>, <span class='k'>vectoriser</span>, <span class='k'>tfidf</span>)
+  },
+  review_rf = <span class='k'>review_rf</span>,
+  vectoriser = <span class='k'>vectoriser</span>,
+  tfidf = <span class='k'>tfidf</span>,
+  <span class='o'>!</span><span class='o'>!</span><span class='o'>!</span><span class='k'>package_contents_to_set_env</span>,
+  <span class='o'>!</span><span class='o'>!</span><span class='o'>!</span><span class='k'>imported_functions_to_declare</span>
+)</code></pre>
+
+</div>
+
+If I run my environment Docker image and serve this crated model, it works! Thank you Nick!
+
 MLflow and R
 ------------
 
-Overall, I don't feel confident using MLflow to deploy and serve an R model. The support through the `carrier` package is promising, but not yet mature enough to serve anything other than simple models with simple preprocessing.
+Overall, I don't feel confident using MLflow to deploy and serve an R model. The support through the `carrier` package is promising, but not yet mature enough to serve anything other than simple models with simple preprocessing. I've had to get around this by applying some metaprogramming hacks.
 
 I think the `carrier` package is a great approach to exporting an R model, and that the ability to export an arbitrary function would be more flexible than exporting an object in a given machine learning framework. But the package needs more power in terms of dependency detection.
 

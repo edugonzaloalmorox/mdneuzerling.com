@@ -395,9 +395,44 @@ curl -X POST "http://127.0.0.1:5000/predict/" -H  "accept: application/json" -H 
 
 This works, but getting all of those dependencies into `crate` looks very hacky.
 
+### But this does work!
+
+After I published this post, [Nick DiQuattro](https://twitter.com/ndiquattro) came up with a great idea: stick the environment of the model package into the `crate` function. And it works!
+
+According to the documentation for `rlang::ns_env`, the package namespace is an environment where all of the functions of the package live. "The parent environments of namespaces are the `imports` environments, which contain all the functions imported from other packages". So I'm going to take those imported functions and stick them into `crate`, without having to manually declare each one.
+
+The process is similar to defining `package_contents_to_set_env`:
+
+```{r ns-imports-env, eval = FALSE}
+import_env <- ns_imports_env(package_name)
+imported_functions_names <- ls(import_env)
+imported_functions_to_declare <- lapply(
+  imported_functions_names,
+  function(x) expr(import_env[[!!x]])
+)
+names(imported_functions_to_declare) <- imported_functions_names
+```
+
+Now my `crate` call looks like this:
+
+```{r full-crate-call, eval = FALSE}
+crated_model <- carrier::crate(
+  function(review) {
+    sentiment(review, review_rf, vectoriser, tfidf)
+  },
+  review_rf = review_rf,
+  vectoriser = vectoriser,
+  tfidf = tfidf,
+  !!!package_contents_to_set_env,
+  !!!imported_functions_to_declare
+)
+```
+
+If I run my environment Docker image and serve this crated model, it works! Thank you Nick!
+
 ## MLflow and R
 
-Overall, I don't feel confident using MLflow to deploy and serve an R model. The support through the `carrier` package is promising, but not yet mature enough to serve anything other than simple models with simple preprocessing.
+Overall, I don't feel confident using MLflow to deploy and serve an R model. The support through the `carrier` package is promising, but not yet mature enough to serve anything other than simple models with simple preprocessing. I've had to get around this by applying some metaprogramming hacks.
 
 I think the `carrier` package is a great approach to exporting an R model, and that the ability to export an arbitrary function would be more flexible than exporting an object in a given machine learning framework. But the package needs more power in terms of dependency detection.
 
