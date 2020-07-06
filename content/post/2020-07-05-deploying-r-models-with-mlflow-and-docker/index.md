@@ -9,7 +9,7 @@ images: ["/img/containers.jpeg"]
 featuredalt: |
     Shipping containers
 output: hugodown::md_document
-rmd_hash: 75890f900d3c2ed5
+rmd_hash: 0224157ddefbb005
 
 ---
 
@@ -467,7 +467,7 @@ It's a lot of work, declaring all of these dependencies, but now my `MLflow` mod
 
 </div>
 
-This works, but getting all of those dependencies into `crate` looks very hacky.
+`crate` has all of the dependencies now, but declaring those dependencies looks very hacky. I'm not sure if I'd call this a solution.
 
 ### But this does work!
 

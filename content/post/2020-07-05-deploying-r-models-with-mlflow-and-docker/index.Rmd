@@ -393,7 +393,7 @@ curl -X POST "http://127.0.0.1:5000/predict/" -H  "accept: application/json" -H 
 # "good"
 ```
 
-This works, but getting all of those dependencies into `crate` looks very hacky.
+`crate` has all of the dependencies now, but declaring those dependencies looks very hacky. I'm not sure if I'd call this a solution.
 
 ### But this does work!
 
@@ -428,7 +428,9 @@ crated_model <- carrier::crate(
 )
 ```
 
-If I run my environment Docker image and serve this crated model, it works! Thank you Nick!
+If I run my environment Docker image and serve this crated model, it works! It's still a bit hacky, but not as bad as manually declaring every imported function. And, because `randomForest::randomForest` is an imported function in the NAMESPACE, that carries along the S3 method `predict.randomForest`. Which means that I can just use `predict` in my internal funtions, and R will be able to dispatch correctly.
+
+Thank you so much Nick!
 
 ## MLflow and R
 
