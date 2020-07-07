@@ -9,7 +9,7 @@ images: ["/img/crime-scene.jpeg"]
 featuredalt: |
     Tape that reads "Crime Scene".
 output: hugodown::md_document
-rmd_hash: acd00ce2b3754838
+rmd_hash: 00162f5915f0ca34
 
 ---
 
@@ -18,7 +18,7 @@ Suppose I want a function that runs some setup code before it runs the first tim
 Here's what I do:
 
 1.  Create a new function with the same signature as my target function.
-2.  Capture my setup code, and evaluate it at the top of my new bootstrapping function.
+2.  Capture my setup code, and evaluate it when my new bootstrapping function is called.
 3.  When my bootstrapping function is being executed, make it redefine itself with my target function in the same environment.
 4.  After the redefinition, call the function again, which is now the redefined function, which is now my target function.
 
@@ -143,8 +143,8 @@ Sure enough, the code has been redefined:
 
 <pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>add_1_to_all_numeric_columns</span>
 <span class='c'>#&gt; function(df) mutate_if(df, is.numeric, function(x) x + 1)</span>
-<span class='c'>#&gt; &lt;bytecode: 0x55ea47b6b908&gt;</span>
-<span class='c'>#&gt; &lt;environment: 0x55ea46ba3b10&gt;</span></code></pre>
+<span class='c'>#&gt; &lt;bytecode: 0x564733e86908&gt;</span>
+<span class='c'>#&gt; &lt;environment: 0x564732ebeb10&gt;</span></code></pre>
 
 </div>
 

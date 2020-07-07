@@ -16,7 +16,7 @@ Suppose I want a function that runs some setup code before it runs the first tim
 Here's what I do:
 
 1. Create a new function with the same signature as my target function.
-1. Capture my setup code, and evaluate it at the top of my new bootstrapping function.
+1. Capture my setup code, and evaluate it when my new bootstrapping function is called.
 1. When my bootstrapping function is being executed, make it redefine itself with my target function in the same environment.
 1. After the redefinition, call the function again, which is now the redefined function, which is now my target function.
 
