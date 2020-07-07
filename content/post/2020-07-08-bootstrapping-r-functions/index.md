@@ -9,7 +9,7 @@ images: ["/img/crime-scene.jpeg"]
 featuredalt: |
     Tape that reads "Crime Scene".
 output: hugodown::md_document
-rmd_hash: 7a4d998f81a902b8
+rmd_hash: f5f408e2786f68e7
 
 ---
 
@@ -73,7 +73,7 @@ By the way, I'm not actually suggesting you do this. It's a *wild* idea. Functio
 
 </div>
 
-I haven't thrown a lot of test cases at this code yet, but here's a simple example: take a data frame and add 1 to every numeric column. I've written the code in dplyr, but I've used `mutate_if` instead of [`dplyr::mutate_if`](https://dplyr.tidyverse.org/reference/mutate_all.html). I'll need to call [`library(dplyr)`](https://dplyr.tidyverse.org) before I run this function. I'll put an extra [`message()`](https://rdrr.io/r/base/message.html) in the setup code to make it clear that I'm actually running the setup.
+I haven't thrown a lot of test cases at this code yet, but here's a simple example: take a data frame and add 1 to every numeric column. I've written the code with dplyr, but I've used `mutate_if` instead of [`dplyr::mutate_if`](https://dplyr.tidyverse.org/reference/mutate_all.html). I'll need to call [`library(dplyr)`](https://dplyr.tidyverse.org) before I run this function. I'll put an extra [`message()`](https://rdrr.io/r/base/message.html) in the setup code to make it clear that I'm actually running the setup.
 
 <div class="highlight">
 
@@ -137,14 +137,14 @@ Let's run this monstrousity:
 
 </div>
 
-Sure enough, the code has been redefined:
+Sure enough, the function has been redefined:
 
 <div class="highlight">
 
 <pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>add_1_to_all_numeric_columns</span>
 <span class='c'>#&gt; function(df) mutate_if(df, is.numeric, ~.x + 1)</span>
-<span class='c'>#&gt; &lt;bytecode: 0x55ac3e1c4bf8&gt;</span>
-<span class='c'>#&gt; &lt;environment: 0x55ac3d335bf0&gt;</span></code></pre>
+<span class='c'>#&gt; &lt;bytecode: 0x557b6e7dcb88&gt;</span>
+<span class='c'>#&gt; &lt;environment: 0x557b6d94db80&gt;</span></code></pre>
 
 </div>
 

@@ -69,7 +69,7 @@ bootstrapping_function <- function(fn, setup) {
 }
 ```
 
-I haven't thrown a lot of test cases at this code yet, but here's a simple example: take a data frame and add 1 to every numeric column. I've written the code in dplyr, but I've used `mutate_if` instead of `dplyr::mutate_if`. I'll need to call `library(dplyr)` before I run this function. I'll put an extra `message()` in the setup code to make it clear that I'm actually running the setup.
+I haven't thrown a lot of test cases at this code yet, but here's a simple example: take a data frame and add 1 to every numeric column. I've written the code with dplyr, but I've used `mutate_if` instead of `dplyr::mutate_if`. I'll need to call `library(dplyr)` before I run this function. I'll put an extra `message()` in the setup code to make it clear that I'm actually running the setup.
 
 ```{r add-1-to-all-columns}
 add_1_to_all_numeric_columns <- bootstrapping_function(
@@ -87,7 +87,7 @@ Let's run this monstrousity:
 add_1_to_all_numeric_columns(mtcars)
 ```
 
-Sure enough, the code has been redefined:
+Sure enough, the function has been redefined:
 
 ```{r body-after-eval}
 add_1_to_all_numeric_columns
