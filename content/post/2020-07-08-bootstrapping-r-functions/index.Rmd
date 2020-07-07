@@ -32,7 +32,7 @@ bootstrapping_function <- function(fn, setup) {
     # The name of the function that's currently being executed.
     this_function_name <- as.character(match.call()[[1]])
 
-    # We want to redefine the function in the same environment in which its
+    # We want to redefine the function in the same environment in which it's
     # currently defined. This function crawls up the environment hierarchy
     # until it finds an object with the right name. Possible improvement:
     # ignore any objects with the right name if they aren't functions.
