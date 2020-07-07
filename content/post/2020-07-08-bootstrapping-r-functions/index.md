@@ -9,7 +9,7 @@ images: ["/img/crime-scene.jpeg"]
 featuredalt: |
     Tape that reads "Crime Scene".
 output: hugodown::md_document
-rmd_hash: 3ee483574a080200
+rmd_hash: 0c2fd20802ad8c9d
 
 ---
 
@@ -36,7 +36,7 @@ By the way, I'm not actually suggesting you do this. It's a *wild* idea. Functio
     <span class='k'>this_function_name</span> <span class='o'>&lt;-</span> <span class='nf'><a href='https://rdrr.io/r/base/character.html'>as.character</a></span>(<span class='nf'><a href='https://rdrr.io/r/base/match.call.html'>match.call</a></span>()[[<span class='m'>1</span>]])
 
     <span class='k'>which_environment</span> <span class='o'>&lt;-</span> <span class='nf'>function</span>(<span class='k'>name</span>, <span class='k'>env</span> = <span class='nf'><a href='https://rdrr.io/r/base/sys.parent.html'>parent.frame</a></span>()) {
-      <span class='c'># http://adv-r.had.co.nz/Environments.html</span>
+      <span class='c'># Adapted from http://adv-r.had.co.nz/Environments.html</span>
       <span class='kr'>if</span> (<span class='nf'><a href='https://rdrr.io/r/base/identical.html'>identical</a></span>(<span class='k'>env</span>, <span class='nf'><a href='https://rdrr.io/r/base/environment.html'>emptyenv</a></span>())) {
         <span class='nf'><a href='https://rdrr.io/r/base/stop.html'>stop</a></span>(<span class='s'>"Can't find "</span>, <span class='k'>name</span>, call. = <span class='kc'>FALSE</span>)
       } <span class='kr'>else</span> <span class='kr'>if</span> (<span class='nf'><a href='https://rdrr.io/r/base/exists.html'>exists</a></span>(<span class='k'>name</span>, envir = <span class='k'>env</span>, inherits = <span class='kc'>FALSE</span>)) {
@@ -47,7 +47,8 @@ By the way, I'm not actually suggesting you do this. It's a *wild* idea. Functio
     }
     <span class='k'>this_function_env</span> <span class='o'>&lt;-</span> <span class='nf'>which_environment</span>(<span class='k'>this_function_name</span>)
 
-    <span class='k'>get_args</span> <span class='o'>&lt;-</span> <span class='nf'>function</span>() { <span class='c'># https://stackoverflow.com/a/47955845/8456369</span>
+    <span class='k'>get_args</span> <span class='o'>&lt;-</span> <span class='nf'>function</span>() {
+      <span class='c'># Adapted from https://stackoverflow.com/a/47955845/8456369</span>
       <span class='k'>parent_formals</span> <span class='o'>&lt;-</span> <span class='nf'><a href='https://rdrr.io/r/base/formals.html'>formals</a></span>(<span class='nf'><a href='https://rdrr.io/r/base/sys.parent.html'>sys.function</a></span>(<span class='nf'><a href='https://rdrr.io/r/base/sys.parent.html'>sys.parent</a></span>(n = <span class='m'>1</span>)))
       <span class='k'>fnames</span> <span class='o'>&lt;-</span> <span class='nf'><a href='https://rdrr.io/r/base/names.html'>names</a></span>(<span class='k'>parent_formals</span>)
       <span class='k'>without_ellipses</span> <span class='o'>&lt;-</span> <span class='k'>fnames</span>[<span class='k'>fnames</span> != <span class='s'>"..."</span>]
@@ -143,8 +144,8 @@ Sure enough, the code has been redefined:
 
 <pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>add_1_to_all_numeric_columns</span>
 <span class='c'>#&gt; function(df) mutate_if(df, is.numeric, function(x) x + 1)</span>
-<span class='c'>#&gt; &lt;bytecode: 0x55696012c778&gt;</span>
-<span class='c'>#&gt; &lt;environment: 0x556960082508&gt;</span></code></pre>
+<span class='c'>#&gt; &lt;bytecode: 0x56096df889e8&gt;</span>
+<span class='c'>#&gt; &lt;environment: 0x56096dedbcf8&gt;</span></code></pre>
 
 </div>
 

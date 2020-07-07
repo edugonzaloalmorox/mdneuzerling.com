@@ -33,7 +33,7 @@ bootstrapping_function <- function(fn, setup) {
     this_function_name <- as.character(match.call()[[1]])
 
     which_environment <- function(name, env = parent.frame()) {
-      # http://adv-r.had.co.nz/Environments.html
+      # Adapted from http://adv-r.had.co.nz/Environments.html
       if (identical(env, emptyenv())) {
         stop("Can't find ", name, call. = FALSE)
       } else if (exists(name, envir = env, inherits = FALSE)) {
@@ -44,7 +44,8 @@ bootstrapping_function <- function(fn, setup) {
     }
     this_function_env <- which_environment(this_function_name)
 
-    get_args <- function() { # https://stackoverflow.com/a/47955845/8456369
+    get_args <- function() {
+      # Adapted from https://stackoverflow.com/a/47955845/8456369
       parent_formals <- formals(sys.function(sys.parent(n = 1)))
       fnames <- names(parent_formals)
       without_ellipses <- fnames[fnames != "..."]
