@@ -27,10 +27,15 @@ By the way, I'm not actually suggesting you do this. It's a _wild_ idea. Functio
 ```{r bootstrapping-function}
 bootstrapping_function <- function(fn, setup) {
   setup <- substitute(setup)
-  bootstrapping_function <- fn
+  bootstrapping_function <- fn # Copy the function so we can keep its formals
   body(bootstrapping_function) <- substitute({
+    # The name of the function that's currently being executed.
     this_function_name <- as.character(match.call()[[1]])
 
+    # We want to redefine the function in the same environment in which its
+    # currently defined. This function crawls up the environment hierarchy
+    # until it finds an object with the right name. Possible improvement:
+    # ignore any objects with the right name if they aren't functions.
     which_environment <- function(name, env = parent.frame()) {
       # Adapted from http://adv-r.had.co.nz/Environments.html
       if (identical(env, emptyenv())) {
@@ -43,6 +48,9 @@ bootstrapping_function <- function(fn, setup) {
     }
     this_function_env <- which_environment(this_function_name)
 
+    # Recover the arguments that are being provided to this function at
+    # run-time, as a list. This lets us execute the function again after its
+    # been redefined.
     get_args <- function() {
       # Adapted from https://stackoverflow.com/a/47955845/8456369
       parent_formals <- formals(sys.function(sys.parent(n = 1)))
@@ -58,8 +66,8 @@ bootstrapping_function <- function(fn, setup) {
 
     fn_location <- which_environment(this_function_name)
     eval(setup, parent.frame(2)) # evaluate in caller_env
-    assign(this_function_name, fn, this_function_env)
-    do.call(
+    assign(this_function_name, fn, this_function_env) # here's the redefinition
+    do.call( # call the function again with the same arguments
       this_function_name,
       args = get_args(),
       envir = parent.frame(2)

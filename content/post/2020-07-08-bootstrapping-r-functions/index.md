@@ -9,7 +9,7 @@ images: ["/img/crime-scene.jpeg"]
 featuredalt: |
     Tape that reads "Crime Scene".
 output: hugodown::md_document
-rmd_hash: f5f408e2786f68e7
+rmd_hash: 2364268c9ad5c9d9
 
 ---
 
@@ -30,10 +30,15 @@ By the way, I'm not actually suggesting you do this. It's a *wild* idea. Functio
 
 <pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>bootstrapping_function</span> <span class='o'>&lt;-</span> <span class='nf'>function</span>(<span class='k'>fn</span>, <span class='k'>setup</span>) {
   <span class='k'>setup</span> <span class='o'>&lt;-</span> <span class='nf'><a href='https://rdrr.io/r/base/substitute.html'>substitute</a></span>(<span class='k'>setup</span>)
-  <span class='k'>bootstrapping_function</span> <span class='o'>&lt;-</span> <span class='k'>fn</span>
+  <span class='k'>bootstrapping_function</span> <span class='o'>&lt;-</span> <span class='k'>fn</span> <span class='c'># Copy the function so we can keep its formals</span>
   <span class='nf'><a href='https://rdrr.io/r/base/body.html'>body</a></span>(<span class='k'>bootstrapping_function</span>) <span class='o'>&lt;-</span> <span class='nf'><a href='https://rdrr.io/r/base/substitute.html'>substitute</a></span>({
+    <span class='c'># The name of the function that's currently being executed.</span>
     <span class='k'>this_function_name</span> <span class='o'>&lt;-</span> <span class='nf'><a href='https://rdrr.io/r/base/character.html'>as.character</a></span>(<span class='nf'><a href='https://rdrr.io/r/base/match.call.html'>match.call</a></span>()[[<span class='m'>1</span>]])
 
+    <span class='c'># We want to redefine the function in the same environment in which its</span>
+    <span class='c'># currently defined. This function crawls up the environment hierarchy</span>
+    <span class='c'># until it finds an object with the right name. Possible improvement:</span>
+    <span class='c'># ignore any objects with the right name if they aren't functions.</span>
     <span class='k'>which_environment</span> <span class='o'>&lt;-</span> <span class='nf'>function</span>(<span class='k'>name</span>, <span class='k'>env</span> = <span class='nf'><a href='https://rdrr.io/r/base/sys.parent.html'>parent.frame</a></span>()) {
       <span class='c'># Adapted from http://adv-r.had.co.nz/Environments.html</span>
       <span class='kr'>if</span> (<span class='nf'><a href='https://rdrr.io/r/base/identical.html'>identical</a></span>(<span class='k'>env</span>, <span class='nf'><a href='https://rdrr.io/r/base/environment.html'>emptyenv</a></span>())) {
@@ -46,6 +51,9 @@ By the way, I'm not actually suggesting you do this. It's a *wild* idea. Functio
     }
     <span class='k'>this_function_env</span> <span class='o'>&lt;-</span> <span class='nf'>which_environment</span>(<span class='k'>this_function_name</span>)
 
+    <span class='c'># Recover the arguments that are being provided to this function at</span>
+    <span class='c'># run-time, as a list. This lets us execute the function again after its</span>
+    <span class='c'># been redefined.</span>
     <span class='k'>get_args</span> <span class='o'>&lt;-</span> <span class='nf'>function</span>() {
       <span class='c'># Adapted from https://stackoverflow.com/a/47955845/8456369</span>
       <span class='k'>parent_formals</span> <span class='o'>&lt;-</span> <span class='nf'><a href='https://rdrr.io/r/base/formals.html'>formals</a></span>(<span class='nf'><a href='https://rdrr.io/r/base/sys.parent.html'>sys.function</a></span>(<span class='nf'><a href='https://rdrr.io/r/base/sys.parent.html'>sys.parent</a></span>(n = <span class='m'>1</span>)))
@@ -61,8 +69,8 @@ By the way, I'm not actually suggesting you do this. It's a *wild* idea. Functio
 
     <span class='k'>fn_location</span> <span class='o'>&lt;-</span> <span class='nf'>which_environment</span>(<span class='k'>this_function_name</span>)
     <span class='nf'><a href='https://rdrr.io/r/base/eval.html'>eval</a></span>(<span class='k'>setup</span>, <span class='nf'><a href='https://rdrr.io/r/base/sys.parent.html'>parent.frame</a></span>(<span class='m'>2</span>)) <span class='c'># evaluate in caller_env</span>
-    <span class='nf'><a href='https://rdrr.io/r/base/assign.html'>assign</a></span>(<span class='k'>this_function_name</span>, <span class='k'>fn</span>, <span class='k'>this_function_env</span>)
-    <span class='nf'><a href='https://rdrr.io/r/base/do.call.html'>do.call</a></span>(
+    <span class='nf'><a href='https://rdrr.io/r/base/assign.html'>assign</a></span>(<span class='k'>this_function_name</span>, <span class='k'>fn</span>, <span class='k'>this_function_env</span>) <span class='c'># here's the redefinition</span>
+    <span class='nf'><a href='https://rdrr.io/r/base/do.call.html'>do.call</a></span>( <span class='c'># call the function again with the same arguments</span>
       <span class='k'>this_function_name</span>,
       args = <span class='nf'>get_args</span>(),
       envir = <span class='nf'><a href='https://rdrr.io/r/base/sys.parent.html'>parent.frame</a></span>(<span class='m'>2</span>)
@@ -143,8 +151,8 @@ Sure enough, the function has been redefined:
 
 <pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>add_1_to_all_numeric_columns</span>
 <span class='c'>#&gt; function(df) mutate_if(df, is.numeric, ~.x + 1)</span>
-<span class='c'>#&gt; &lt;bytecode: 0x557b6e7dcb88&gt;</span>
-<span class='c'>#&gt; &lt;environment: 0x557b6d94db80&gt;</span></code></pre>
+<span class='c'>#&gt; &lt;bytecode: 0x5632f69c60c0&gt;</span>
+<span class='c'>#&gt; &lt;environment: 0x5632f69843f8&gt;</span></code></pre>
 
 </div>
 
