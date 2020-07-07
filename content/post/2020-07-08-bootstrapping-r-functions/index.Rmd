@@ -1,0 +1,107 @@
+---
+title: Bootstrapping R functions
+author: ~
+date: '2020-07-08'
+slug: bootstrapping-r-functions
+tags:
+    - R
+images: ["/img/crime-scene.jpeg"]
+featuredalt: |
+    Tape that reads "Crime Scene".
+output: hugodown::md_document
+---
+
+Suppose I want a function that runs some setup code before it runs the first time. Maybe I'm using dplyr but I haven't properly declared all of my dplyr calls in my function, so I want to run `library(dplyr)` before the actual function is run. Or maybe I want to install a package if it isn't already installed, or restore a `renv` file, or any other setup process. I only want this special code to run the first time my function is called. After that, the function that runs should be exactly as I declared it, with none of the setup code.
+
+Here's what I do:
+
+1. Create a new function with the same signature as my target function.
+1. Capture my setup code, and evaluate it at the top of my new bootstrapping function.
+1. When my bootstrapping function is being executed, make it redefine itself with my target function in the same environment.
+1. After the redefinition, call the function again, which is now the redefined function, which is now my target function.
+
+And then, to make things even more bizarre, I wrap this process up in a function-generating function that does all of this for me, with an input of just a function and some setup code.
+
+By the way, I'm not actually suggesting you do this. It's a _wild_ idea. Functions redefining themselves is an uncomfortable concept. And the idea that a function is running complicated setup code that isn't even hinted at in the function name makes me uneasy as well. But you **can** do this. So here it is:
+
+```{r bootstrapping-function}
+bootstrapping_function <- function(fn, setup) {
+  setup <- substitute(setup)
+  intended_function_body <- body(fn)
+  bootstrapping_function <- fn
+  body(bootstrapping_function) <- substitute({
+    this_function_name <- as.character(match.call()[[1]])
+
+    which_environment <- function(name, env = parent.frame()) {
+      # http://adv-r.had.co.nz/Environments.html
+      if (identical(env, emptyenv())) {
+        stop("Can't find ", name, call. = FALSE)
+      } else if (exists(name, envir = env, inherits = FALSE)) {
+        env
+      } else {
+        which_environment(name, parent.env(env))
+      }
+    }
+    this_function_env <- which_environment(this_function_name)
+
+    get_args <- function() { # https://stackoverflow.com/a/47955845/8456369
+      parent_formals <- formals(sys.function(sys.parent(n = 1)))
+      fnames <- names(parent_formals)
+      without_ellipses <- fnames[fnames != "..."]
+      args <- evalq(as.list(environment()), envir = parent.frame())
+      if ("..." %in% fnames) {
+        c(args[without_ellipses], evalq(list(...), envir = parent.frame()))
+      } else {
+        args[without_ellipses]
+      }
+    }
+
+    fn_location <- which_environment(this_function_name)
+    eval(setup, parent.frame(2)) # evaluate in caller_env
+    assign(this_function_name, fn, this_function_env)
+    do.call(
+      this_function_name,
+      args = get_args(),
+      envir = parent.frame(2)
+    )
+  })
+  bootstrapping_function
+}
+```
+
+I haven't thrown a lot of test cases at this code yet, but here's a simple example: take a data frame and add 1 to every numeric column. I've written the code in dplyr, but I've used `mutate_if` instead of `dplyr::mutate_if`. I'll need to call `library(dplyr)` before I run this function. I'll put an extra `message()` in the setup code to make it clear that I'm actually running the setup.
+
+```{r add-1-to-all-columns}
+add_1_to_all_numeric_columns <- bootstrapping_function(
+  function(df) mutate_if(df, is.numeric, function(x) x + 1),
+  setup = {
+    message("Setting up the function to add 1 to all numeric columns")
+    library(dplyr)
+  }
+)
+```
+
+Let's run this monstrousity:
+
+```{r eval-first-time}
+add_1_to_all_numeric_columns(mtcars)
+```
+
+Sure enough, the code has been redefined:
+
+```{r body-after-eval}
+add_1_to_all_numeric_columns
+```
+
+And now, if I run it a second time, there's no setup:
+
+```{r eval-second-time}
+add_1_to_all_numeric_columns(mtcars)
+```
+
+***
+```{r sessioninfo}
+devtools::session_info()
+```
+
+[The image at the top of this page is in the public domain](https://www.pexels.com/photo/crime-scene-do-not-cross-signage-923681/).
