@@ -9,7 +9,7 @@ images: ["/img/crime-scene.jpeg"]
 featuredalt: |
     Tape that reads "Crime Scene".
 output: hugodown::md_document
-rmd_hash: 083bb4446fa50b0d
+rmd_hash: a660118378198a26
 
 ---
 
@@ -35,7 +35,7 @@ By the way, I'm not actually suggesting you do this. It's a *wild* idea. Functio
     <span class='c'># The name of the function that's currently being executed.</span>
     <span class='k'>this_function_name</span> <span class='o'>&lt;-</span> <span class='nf'><a href='https://rdrr.io/r/base/character.html'>as.character</a></span>(<span class='nf'><a href='https://rdrr.io/r/base/match.call.html'>match.call</a></span>()[[<span class='m'>1</span>]])
 
-    <span class='c'># We want to redefine the function in the same environment in which its</span>
+    <span class='c'># We want to redefine the function in the same environment in which it's</span>
     <span class='c'># currently defined. This function crawls up the environment hierarchy</span>
     <span class='c'># until it finds an object with the right name. Possible improvement:</span>
     <span class='c'># ignore any objects with the right name if they aren't functions.</span>
@@ -151,8 +151,8 @@ Sure enough, the function has been redefined:
 
 <pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>add_1_to_all_numeric_columns</span>
 <span class='c'>#&gt; function(df) mutate_if(df, is.numeric, ~.x + 1)</span>
-<span class='c'>#&gt; &lt;bytecode: 0x560cecc8b0c0&gt;</span>
-<span class='c'>#&gt; &lt;environment: 0x560cecc493f8&gt;</span></code></pre>
+<span class='c'>#&gt; &lt;bytecode: 0x557c1b6bd0c0&gt;</span>
+<span class='c'>#&gt; &lt;environment: 0x557c1b67b3f8&gt;</span></code></pre>
 
 </div>
 
