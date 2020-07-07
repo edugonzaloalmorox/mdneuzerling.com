@@ -92,7 +92,7 @@ add_1_to_all_numeric_columns <- bootstrapping_function(
 Let's run this monstrousity:
 
 ```{r eval-first-time}
-add_1_to_all_numeric_columns(mtcars)
+head(add_1_to_all_numeric_columns(mtcars))
 ```
 
 Sure enough, the function has been redefined:
@@ -104,7 +104,7 @@ add_1_to_all_numeric_columns
 And now, if I run it a second time, there's no setup:
 
 ```{r eval-second-time}
-add_1_to_all_numeric_columns(mtcars)
+head(add_1_to_all_numeric_columns(mtcars))
 ```
 
 ***

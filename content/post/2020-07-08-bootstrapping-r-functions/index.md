@@ -9,7 +9,7 @@ images: ["/img/crime-scene.jpeg"]
 featuredalt: |
     Tape that reads "Crime Scene".
 output: hugodown::md_document
-rmd_hash: a660118378198a26
+rmd_hash: 8d2db1d06bb54721
 
 ---
 
@@ -99,7 +99,7 @@ Let's run this monstrousity:
 
 <div class="highlight">
 
-<pre class='chroma'><code class='language-r' data-lang='r'><span class='nf'>add_1_to_all_numeric_columns</span>(<span class='k'>mtcars</span>)
+<pre class='chroma'><code class='language-r' data-lang='r'><span class='nf'><a href='https://rdrr.io/r/utils/head.html'>head</a></span>(<span class='nf'>add_1_to_all_numeric_columns</span>(<span class='k'>mtcars</span>))
 <span class='c'>#&gt; Setting up the function to add 1 to all numeric columns</span>
 <span class='c'>#&gt; </span>
 <span class='c'>#&gt; Attaching package: 'dplyr'</span>
@@ -109,39 +109,13 @@ Let's run this monstrousity:
 <span class='c'>#&gt; The following objects are masked from 'package:base':</span>
 <span class='c'>#&gt; </span>
 <span class='c'>#&gt;     intersect, setdiff, setequal, union</span>
-<span class='c'>#&gt;     mpg cyl  disp  hp drat    wt  qsec vs am gear carb</span>
-<span class='c'>#&gt; 1  22.0   7 161.0 111 4.90 3.620 17.46  1  2    5    5</span>
-<span class='c'>#&gt; 2  22.0   7 161.0 111 4.90 3.875 18.02  1  2    5    5</span>
-<span class='c'>#&gt; 3  23.8   5 109.0  94 4.85 3.320 19.61  2  2    5    2</span>
-<span class='c'>#&gt; 4  22.4   7 259.0 111 4.08 4.215 20.44  2  1    4    2</span>
-<span class='c'>#&gt; 5  19.7   9 361.0 176 4.15 4.440 18.02  1  1    4    3</span>
-<span class='c'>#&gt; 6  19.1   7 226.0 106 3.76 4.460 21.22  2  1    4    2</span>
-<span class='c'>#&gt; 7  15.3   9 361.0 246 4.21 4.570 16.84  1  1    4    5</span>
-<span class='c'>#&gt; 8  25.4   5 147.7  63 4.69 4.190 21.00  2  1    5    3</span>
-<span class='c'>#&gt; 9  23.8   5 141.8  96 4.92 4.150 23.90  2  1    5    3</span>
-<span class='c'>#&gt; 10 20.2   7 168.6 124 4.92 4.440 19.30  2  1    5    5</span>
-<span class='c'>#&gt; 11 18.8   7 168.6 124 4.92 4.440 19.90  2  1    5    5</span>
-<span class='c'>#&gt; 12 17.4   9 276.8 181 4.07 5.070 18.40  1  1    4    4</span>
-<span class='c'>#&gt; 13 18.3   9 276.8 181 4.07 4.730 18.60  1  1    4    4</span>
-<span class='c'>#&gt; 14 16.2   9 276.8 181 4.07 4.780 19.00  1  1    4    4</span>
-<span class='c'>#&gt; 15 11.4   9 473.0 206 3.93 6.250 18.98  1  1    4    5</span>
-<span class='c'>#&gt; 16 11.4   9 461.0 216 4.00 6.424 18.82  1  1    4    5</span>
-<span class='c'>#&gt; 17 15.7   9 441.0 231 4.23 6.345 18.42  1  1    4    5</span>
-<span class='c'>#&gt; 18 33.4   5  79.7  67 5.08 3.200 20.47  2  2    5    2</span>
-<span class='c'>#&gt; 19 31.4   5  76.7  53 5.93 2.615 19.52  2  2    5    3</span>
-<span class='c'>#&gt; 20 34.9   5  72.1  66 5.22 2.835 20.90  2  2    5    2</span>
-<span class='c'>#&gt; 21 22.5   5 121.1  98 4.70 3.465 21.01  2  1    4    2</span>
-<span class='c'>#&gt; 22 16.5   9 319.0 151 3.76 4.520 17.87  1  1    4    3</span>
-<span class='c'>#&gt; 23 16.2   9 305.0 151 4.15 4.435 18.30  1  1    4    3</span>
-<span class='c'>#&gt; 24 14.3   9 351.0 246 4.73 4.840 16.41  1  1    4    5</span>
-<span class='c'>#&gt; 25 20.2   9 401.0 176 4.08 4.845 18.05  1  1    4    3</span>
-<span class='c'>#&gt; 26 28.3   5  80.0  67 5.08 2.935 19.90  2  2    5    2</span>
-<span class='c'>#&gt; 27 27.0   5 121.3  92 5.43 3.140 17.70  1  2    6    3</span>
-<span class='c'>#&gt; 28 31.4   5  96.1 114 4.77 2.513 17.90  2  2    6    3</span>
-<span class='c'>#&gt; 29 16.8   9 352.0 265 5.22 4.170 15.50  1  2    6    5</span>
-<span class='c'>#&gt; 30 20.7   7 146.0 176 4.62 3.770 16.50  1  2    6    7</span>
-<span class='c'>#&gt; 31 16.0   9 302.0 336 4.54 4.570 15.60  1  2    6    9</span>
-<span class='c'>#&gt; 32 22.4   5 122.0 110 5.11 3.780 19.60  2  2    5    3</span></code></pre>
+<span class='c'>#&gt;    mpg cyl disp  hp drat    wt  qsec vs am gear carb</span>
+<span class='c'>#&gt; 1 22.0   7  161 111 4.90 3.620 17.46  1  2    5    5</span>
+<span class='c'>#&gt; 2 22.0   7  161 111 4.90 3.875 18.02  1  2    5    5</span>
+<span class='c'>#&gt; 3 23.8   5  109  94 4.85 3.320 19.61  2  2    5    2</span>
+<span class='c'>#&gt; 4 22.4   7  259 111 4.08 4.215 20.44  2  1    4    2</span>
+<span class='c'>#&gt; 5 19.7   9  361 176 4.15 4.440 18.02  1  1    4    3</span>
+<span class='c'>#&gt; 6 19.1   7  226 106 3.76 4.460 21.22  2  1    4    2</span></code></pre>
 
 </div>
 
@@ -151,8 +125,8 @@ Sure enough, the function has been redefined:
 
 <pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>add_1_to_all_numeric_columns</span>
 <span class='c'>#&gt; function(df) mutate_if(df, is.numeric, ~.x + 1)</span>
-<span class='c'>#&gt; &lt;bytecode: 0x557c1b6bd0c0&gt;</span>
-<span class='c'>#&gt; &lt;environment: 0x557c1b67b3f8&gt;</span></code></pre>
+<span class='c'>#&gt; &lt;bytecode: 0x55e45ccb8c28&gt;</span>
+<span class='c'>#&gt; &lt;environment: 0x55e45cc770b0&gt;</span></code></pre>
 
 </div>
 
@@ -160,40 +134,14 @@ And now, if I run it a second time, there's no setup:
 
 <div class="highlight">
 
-<pre class='chroma'><code class='language-r' data-lang='r'><span class='nf'>add_1_to_all_numeric_columns</span>(<span class='k'>mtcars</span>)
-<span class='c'>#&gt;     mpg cyl  disp  hp drat    wt  qsec vs am gear carb</span>
-<span class='c'>#&gt; 1  22.0   7 161.0 111 4.90 3.620 17.46  1  2    5    5</span>
-<span class='c'>#&gt; 2  22.0   7 161.0 111 4.90 3.875 18.02  1  2    5    5</span>
-<span class='c'>#&gt; 3  23.8   5 109.0  94 4.85 3.320 19.61  2  2    5    2</span>
-<span class='c'>#&gt; 4  22.4   7 259.0 111 4.08 4.215 20.44  2  1    4    2</span>
-<span class='c'>#&gt; 5  19.7   9 361.0 176 4.15 4.440 18.02  1  1    4    3</span>
-<span class='c'>#&gt; 6  19.1   7 226.0 106 3.76 4.460 21.22  2  1    4    2</span>
-<span class='c'>#&gt; 7  15.3   9 361.0 246 4.21 4.570 16.84  1  1    4    5</span>
-<span class='c'>#&gt; 8  25.4   5 147.7  63 4.69 4.190 21.00  2  1    5    3</span>
-<span class='c'>#&gt; 9  23.8   5 141.8  96 4.92 4.150 23.90  2  1    5    3</span>
-<span class='c'>#&gt; 10 20.2   7 168.6 124 4.92 4.440 19.30  2  1    5    5</span>
-<span class='c'>#&gt; 11 18.8   7 168.6 124 4.92 4.440 19.90  2  1    5    5</span>
-<span class='c'>#&gt; 12 17.4   9 276.8 181 4.07 5.070 18.40  1  1    4    4</span>
-<span class='c'>#&gt; 13 18.3   9 276.8 181 4.07 4.730 18.60  1  1    4    4</span>
-<span class='c'>#&gt; 14 16.2   9 276.8 181 4.07 4.780 19.00  1  1    4    4</span>
-<span class='c'>#&gt; 15 11.4   9 473.0 206 3.93 6.250 18.98  1  1    4    5</span>
-<span class='c'>#&gt; 16 11.4   9 461.0 216 4.00 6.424 18.82  1  1    4    5</span>
-<span class='c'>#&gt; 17 15.7   9 441.0 231 4.23 6.345 18.42  1  1    4    5</span>
-<span class='c'>#&gt; 18 33.4   5  79.7  67 5.08 3.200 20.47  2  2    5    2</span>
-<span class='c'>#&gt; 19 31.4   5  76.7  53 5.93 2.615 19.52  2  2    5    3</span>
-<span class='c'>#&gt; 20 34.9   5  72.1  66 5.22 2.835 20.90  2  2    5    2</span>
-<span class='c'>#&gt; 21 22.5   5 121.1  98 4.70 3.465 21.01  2  1    4    2</span>
-<span class='c'>#&gt; 22 16.5   9 319.0 151 3.76 4.520 17.87  1  1    4    3</span>
-<span class='c'>#&gt; 23 16.2   9 305.0 151 4.15 4.435 18.30  1  1    4    3</span>
-<span class='c'>#&gt; 24 14.3   9 351.0 246 4.73 4.840 16.41  1  1    4    5</span>
-<span class='c'>#&gt; 25 20.2   9 401.0 176 4.08 4.845 18.05  1  1    4    3</span>
-<span class='c'>#&gt; 26 28.3   5  80.0  67 5.08 2.935 19.90  2  2    5    2</span>
-<span class='c'>#&gt; 27 27.0   5 121.3  92 5.43 3.140 17.70  1  2    6    3</span>
-<span class='c'>#&gt; 28 31.4   5  96.1 114 4.77 2.513 17.90  2  2    6    3</span>
-<span class='c'>#&gt; 29 16.8   9 352.0 265 5.22 4.170 15.50  1  2    6    5</span>
-<span class='c'>#&gt; 30 20.7   7 146.0 176 4.62 3.770 16.50  1  2    6    7</span>
-<span class='c'>#&gt; 31 16.0   9 302.0 336 4.54 4.570 15.60  1  2    6    9</span>
-<span class='c'>#&gt; 32 22.4   5 122.0 110 5.11 3.780 19.60  2  2    5    3</span></code></pre>
+<pre class='chroma'><code class='language-r' data-lang='r'><span class='nf'><a href='https://rdrr.io/r/utils/head.html'>head</a></span>(<span class='nf'>add_1_to_all_numeric_columns</span>(<span class='k'>mtcars</span>))
+<span class='c'>#&gt;    mpg cyl disp  hp drat    wt  qsec vs am gear carb</span>
+<span class='c'>#&gt; 1 22.0   7  161 111 4.90 3.620 17.46  1  2    5    5</span>
+<span class='c'>#&gt; 2 22.0   7  161 111 4.90 3.875 18.02  1  2    5    5</span>
+<span class='c'>#&gt; 3 23.8   5  109  94 4.85 3.320 19.61  2  2    5    2</span>
+<span class='c'>#&gt; 4 22.4   7  259 111 4.08 4.215 20.44  2  1    4    2</span>
+<span class='c'>#&gt; 5 19.7   9  361 176 4.15 4.440 18.02  1  1    4    3</span>
+<span class='c'>#&gt; 6 19.1   7  226 106 3.76 4.460 21.22  2  1    4    2</span></code></pre>
 
 </div>
 
