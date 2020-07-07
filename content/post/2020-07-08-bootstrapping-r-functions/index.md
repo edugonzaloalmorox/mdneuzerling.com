@@ -9,7 +9,7 @@ images: ["/img/crime-scene.jpeg"]
 featuredalt: |
     Tape that reads "Crime Scene".
 output: hugodown::md_document
-rmd_hash: 0c2fd20802ad8c9d
+rmd_hash: acd00ce2b3754838
 
 ---
 
@@ -30,7 +30,6 @@ By the way, I'm not actually suggesting you do this. It's a *wild* idea. Functio
 
 <pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>bootstrapping_function</span> <span class='o'>&lt;-</span> <span class='nf'>function</span>(<span class='k'>fn</span>, <span class='k'>setup</span>) {
   <span class='k'>setup</span> <span class='o'>&lt;-</span> <span class='nf'><a href='https://rdrr.io/r/base/substitute.html'>substitute</a></span>(<span class='k'>setup</span>)
-  <span class='k'>intended_function_body</span> <span class='o'>&lt;-</span> <span class='nf'><a href='https://rdrr.io/r/base/body.html'>body</a></span>(<span class='k'>fn</span>)
   <span class='k'>bootstrapping_function</span> <span class='o'>&lt;-</span> <span class='k'>fn</span>
   <span class='nf'><a href='https://rdrr.io/r/base/body.html'>body</a></span>(<span class='k'>bootstrapping_function</span>) <span class='o'>&lt;-</span> <span class='nf'><a href='https://rdrr.io/r/base/substitute.html'>substitute</a></span>({
     <span class='k'>this_function_name</span> <span class='o'>&lt;-</span> <span class='nf'><a href='https://rdrr.io/r/base/character.html'>as.character</a></span>(<span class='nf'><a href='https://rdrr.io/r/base/match.call.html'>match.call</a></span>()[[<span class='m'>1</span>]])
@@ -144,8 +143,8 @@ Sure enough, the code has been redefined:
 
 <pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>add_1_to_all_numeric_columns</span>
 <span class='c'>#&gt; function(df) mutate_if(df, is.numeric, function(x) x + 1)</span>
-<span class='c'>#&gt; &lt;bytecode: 0x56096df889e8&gt;</span>
-<span class='c'>#&gt; &lt;environment: 0x56096dedbcf8&gt;</span></code></pre>
+<span class='c'>#&gt; &lt;bytecode: 0x55ea47b6b908&gt;</span>
+<span class='c'>#&gt; &lt;environment: 0x55ea46ba3b10&gt;</span></code></pre>
 
 </div>
 

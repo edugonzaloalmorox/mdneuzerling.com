@@ -27,7 +27,6 @@ By the way, I'm not actually suggesting you do this. It's a _wild_ idea. Functio
 ```{r bootstrapping-function}
 bootstrapping_function <- function(fn, setup) {
   setup <- substitute(setup)
-  intended_function_body <- body(fn)
   bootstrapping_function <- fn
   body(bootstrapping_function) <- substitute({
     this_function_name <- as.character(match.call()[[1]])
