@@ -9,7 +9,7 @@ images: ["/img/crime-scene.jpeg"]
 featuredalt: |
     Tape that reads "Crime Scene".
 output: hugodown::md_document
-rmd_hash: 2364268c9ad5c9d9
+rmd_hash: 083bb4446fa50b0d
 
 ---
 
@@ -52,7 +52,7 @@ By the way, I'm not actually suggesting you do this. It's a *wild* idea. Functio
     <span class='k'>this_function_env</span> <span class='o'>&lt;-</span> <span class='nf'>which_environment</span>(<span class='k'>this_function_name</span>)
 
     <span class='c'># Recover the arguments that are being provided to this function at</span>
-    <span class='c'># run-time, as a list. This lets us execute the function again after its</span>
+    <span class='c'># run-time, as a list. This lets us execute the function again after it's</span>
     <span class='c'># been redefined.</span>
     <span class='k'>get_args</span> <span class='o'>&lt;-</span> <span class='nf'>function</span>() {
       <span class='c'># Adapted from https://stackoverflow.com/a/47955845/8456369</span>
@@ -151,8 +151,8 @@ Sure enough, the function has been redefined:
 
 <pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>add_1_to_all_numeric_columns</span>
 <span class='c'>#&gt; function(df) mutate_if(df, is.numeric, ~.x + 1)</span>
-<span class='c'>#&gt; &lt;bytecode: 0x5632f69c60c0&gt;</span>
-<span class='c'>#&gt; &lt;environment: 0x5632f69843f8&gt;</span></code></pre>
+<span class='c'>#&gt; &lt;bytecode: 0x560cecc8b0c0&gt;</span>
+<span class='c'>#&gt; &lt;environment: 0x560cecc493f8&gt;</span></code></pre>
 
 </div>
 

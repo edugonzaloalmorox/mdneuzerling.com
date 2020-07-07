@@ -49,7 +49,7 @@ bootstrapping_function <- function(fn, setup) {
     this_function_env <- which_environment(this_function_name)
 
     # Recover the arguments that are being provided to this function at
-    # run-time, as a list. This lets us execute the function again after its
+    # run-time, as a list. This lets us execute the function again after it's
     # been redefined.
     get_args <- function() {
       # Adapted from https://stackoverflow.com/a/47955845/8456369
