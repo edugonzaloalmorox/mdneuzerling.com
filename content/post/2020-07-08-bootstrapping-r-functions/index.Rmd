@@ -73,7 +73,7 @@ I haven't thrown a lot of test cases at this code yet, but here's a simple examp
 
 ```{r add-1-to-all-columns}
 add_1_to_all_numeric_columns <- bootstrapping_function(
-  function(df) mutate_if(df, is.numeric, function(x) x + 1),
+  function(df) mutate_if(df, is.numeric, ~.x + 1),
   setup = {
     message("Setting up the function to add 1 to all numeric columns")
     library(dplyr)

@@ -9,7 +9,7 @@ images: ["/img/crime-scene.jpeg"]
 featuredalt: |
     Tape that reads "Crime Scene".
 output: hugodown::md_document
-rmd_hash: 00162f5915f0ca34
+rmd_hash: 7a4d998f81a902b8
 
 ---
 
@@ -78,7 +78,7 @@ I haven't thrown a lot of test cases at this code yet, but here's a simple examp
 <div class="highlight">
 
 <pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>add_1_to_all_numeric_columns</span> <span class='o'>&lt;-</span> <span class='nf'>bootstrapping_function</span>(
-  <span class='nf'>function</span>(<span class='k'>df</span>) <span class='nf'><a href='https://dplyr.tidyverse.org/reference/mutate_all.html'>mutate_if</a></span>(<span class='k'>df</span>, <span class='k'>is.numeric</span>, <span class='nf'>function</span>(<span class='k'>x</span>) <span class='k'>x</span> <span class='o'>+</span> <span class='m'>1</span>),
+  <span class='nf'>function</span>(<span class='k'>df</span>) <span class='nf'><a href='https://dplyr.tidyverse.org/reference/mutate_all.html'>mutate_if</a></span>(<span class='k'>df</span>, <span class='k'>is.numeric</span>, <span class='o'>~</span><span class='k'>.x</span> <span class='o'>+</span> <span class='m'>1</span>),
   setup = {
     <span class='nf'><a href='https://rdrr.io/r/base/message.html'>message</a></span>(<span class='s'>"Setting up the function to add 1 to all numeric columns"</span>)
     <span class='nf'><a href='https://rdrr.io/r/base/library.html'>library</a></span>(<span class='k'><a href='https://dplyr.tidyverse.org'>dplyr</a></span>)
@@ -142,9 +142,9 @@ Sure enough, the code has been redefined:
 <div class="highlight">
 
 <pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>add_1_to_all_numeric_columns</span>
-<span class='c'>#&gt; function(df) mutate_if(df, is.numeric, function(x) x + 1)</span>
-<span class='c'>#&gt; &lt;bytecode: 0x564733e86908&gt;</span>
-<span class='c'>#&gt; &lt;environment: 0x564732ebeb10&gt;</span></code></pre>
+<span class='c'>#&gt; function(df) mutate_if(df, is.numeric, ~.x + 1)</span>
+<span class='c'>#&gt; &lt;bytecode: 0x55ac3e1c4bf8&gt;</span>
+<span class='c'>#&gt; &lt;environment: 0x55ac3d335bf0&gt;</span></code></pre>
 
 </div>
 
