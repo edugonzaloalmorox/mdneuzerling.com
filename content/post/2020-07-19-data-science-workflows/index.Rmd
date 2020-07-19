@@ -64,7 +64,7 @@ I took note of every function and shortcut I use when following a package workfl
 | Build documentation | [`devtools::document`](https://devtools.r-lib.org/reference/document.html)        | RStudio default keyboard shortcut: Ctrl/⌘ + Shift + D |
 | Set up environment to pin package dependencies | [`renv::init`](https://rstudio.github.io/renv/reference/init.html) | [renv](https://rstudio.github.io/renv/articles/renv.html) is extremely important for any piece of work that needs to be reproducible |
 | Capture or update package dependencies | [`renv::snapshot`](https://rstudio.github.io/renv/reference/snapshot.html) | This is in addition to the dependencies in the `DESCRIPTION` file, since it captures _all_ required packages along with their installed versions |
-| Run tests | [`devtools::test`](https://devtools.r-lib.org/reference/test.html) | UI option: In RStudio, look for the "Test package" option below the "More" button in the "Build" tab |
+| Run tests | [`devtools::test`](https://devtools.r-lib.org/reference/test.html) | UI option: In RStudio, look for the "Test package" option below the "More" button in the "Build" tab. RStudio default keyboard shortcut: Ctrl/⌘ + Shift + T |
 | Run tests in a specific file | [`devtools::test_file`](https://devtools.r-lib.org/reference/test.html) | By default, will test the active file, or a file path can be provided. UI option: he test file in RStudio and look for the "Run Tests" button above the editor. |
 | Run a full package check, including tests | [`rcmdcheck::rcmdcheck`](https://rdrr.io/cran/rcmdcheck/man/rcmdcheck.html) | UI option: In Rstudio, look for the "Check" button in the "Build" tab |
 
