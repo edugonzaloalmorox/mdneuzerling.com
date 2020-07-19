@@ -68,6 +68,10 @@ I took note of every function and shortcut I use when following a package workfl
 | Run tests in a specific file | [`devtools::test_file`](https://devtools.r-lib.org/reference/test.html) | By default, will test the active file, or a file path can be provided. UI option: he test file in RStudio and look for the "Run Tests" button above the editor. |
 | Run a full package check, including tests | [`rcmdcheck::rcmdcheck`](https://rdrr.io/cran/rcmdcheck/man/rcmdcheck.html) | UI option: In Rstudio, look for the "Check" button in the "Build" tab |
 
+### Package workflows and APIs
+
+R code can be served as an API with [the `plumber` package](https://www.rplumber.io/), and this is compatible with a package workflow. James Blair gave [a great talk on _Practical Plumber Patterns_ at rstudio::conf 2020](https://rstudio.com/resources/rstudioconf-2020/practical-plumber-patterns/) where he presented an R package combined with `plumber`. One of the functions in the package actually starts the API. [The source code is available on GitHub](https://github.com/blairj09-talks/ppp/)
+
 # The other language
 
 I use Python almost every day, but I hadn't given a lot of thought on how to structure a Python project. I reached out to Twitter to see if there was a standard.
