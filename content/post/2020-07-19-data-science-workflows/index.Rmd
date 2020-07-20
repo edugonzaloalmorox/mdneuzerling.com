@@ -22,7 +22,7 @@ People have told me that making a package seems like a massive learning curve. T
 
 ### Packages are just a way to organise code
 
-First thing's first: R packages exist independently of CRAN. The packages I make are specific to a project, and often specific to a single data set. They're never going to be submitted to CRAN. Most don't even make it onto GitHub. R packages can be just a way to organise code, nothing more. By following a certain structure and a few rules we get to benefit from a whole bunch of tools designed just for packages.
+First things first: R packages exist independently of CRAN. The packages I make are specific to a project, and often specific to a single data set. They're never going to be submitted to CRAN. Most don't even make it onto GitHub. R packages can be just a way to organise code, nothing more. By following a certain structure and a few rules we get to benefit from a whole bunch of tools designed just for packages.
 
 Package structure is thoroughly explained in [Hadley's book](http://r-pkgs.had.co.nz/package.html), but here are the simplified requirements:
 
