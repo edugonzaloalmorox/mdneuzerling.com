@@ -7,11 +7,11 @@ tags:
     - R
 images: ["/img/coffee-pipeline.png"]
 output: hugodown::md_document
-rmd_hash: 5f3e18607f7d3629
+rmd_hash: 350ca323b4220f07
 
 ---
 
-There's always a need for more `tidymodels` examples on the Internet. Here's a simple machine learning model using the recent *coffee* Tidy Tuesday data set. The plot above gives the approach: I'll define some preprocessing and a model, optimise some hyperparameters, and fit and evaluate the result. And I'll piece all of the components together using `targets`, an experimental successor to the `drake` package that I love so much.
+There's always a need for more `tidymodels` examples on the Internet. Here's a simple machine learning model using [the recent *coffee* Tidy Tuesday data set](https://github.com/rfordatascience/tidytuesday/blob/master/data/2020/2020-07-07/readme.md). The plot above gives the approach: I'll define some preprocessing and a model, optimise some hyperparameters, and fit and evaluate the result. And I'll piece all of the components together using `targets`, an experimental alternative to the `drake` package that I love so much.
 
 As usual, I don't care too much about the model itself. I'm more interested in the process.
 
@@ -380,7 +380,7 @@ I'm using some possibly non-idiomatic R code below. `metric_set(rmse, mae, rsq)`
 Targets
 =======
 
-There are a lot of steps involved in fitting and evaluating this model, so it would help to have a way to orchestrate the whole process. [Normally I would use the `drake` package for this](/post/upgrade-your-workflow-with-drake/) but Will Landau, its creator and maintainer, has been working on [a spiritual successor called targets](https://github.com/wlandau/targets). This is an **experimental** package right now, but I thought I'd give it a go for this.
+There are a lot of steps involved in fitting and evaluating this model, so it would help to have a way to orchestrate the whole process. [Normally I would use the `drake` package for this](/post/upgrade-your-workflow-with-drake/) but Will Landau, its creator and maintainer, has been working on [an alternative called targets](https://github.com/wlandau/targets). This is an **experimental** package right now, but I thought I'd give it a go for this.
 
 `targets` will look very familiar to users of `drake`. [Will has laid out some reasons for creating a separate package](https://wlandau.github.io/targets/articles/need.html). `drake` uses *plans*, which are R objects. `targets` takes a similar approach with its *pipelines*. However, `targets` requires that the pipeline be defined in a specific `_targets.R` file. This file can can also set up required functions and objects for the pipeline, and load necessary packages. The requirement is that it ends with a `targets` pipeline.
 
