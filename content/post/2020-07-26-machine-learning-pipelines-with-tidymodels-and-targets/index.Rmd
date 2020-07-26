@@ -1,0 +1,319 @@
+---
+title: Machine Learning Pipelines with Tidymodels and Targets
+author: ~
+date: '2020-07-26'
+slug: machine-learning-pipelines-with-tidymodels-and-targets
+tags:
+    - R
+images: ["/img/coffee-pipeline.png"]
+output: hugodown::md_document
+---
+
+```{r setup, include=FALSE, cache=FALSE}
+library(tidyverse)
+library(tidymodels)
+```
+
+```{r data-load, include=FALSE, cache=TRUE}
+tidy_tuesday <- tidytuesdayR::tt_load(2020, week = 28)
+coffee <- tidy_tuesday$coffee_ratings
+```
+
+There aren't enough `tidymodels` examples on the Internet. Here's a simple machine learning model using the recent _coffee_ Tidy Tuesday data set. The plot above gives the approach: I'll define some preprocessing and a model, optimise some hyperparameters, and fit and evaluate the result. And I'll piece all of the components together using `targets`, an experimental successor to the `drake` package that I love so much.
+
+As usual, I don't care too much about the model itself. I'm more interested in the process.
+
+# Exploratory data analysis
+
+I'll start with some token data visualisation. I almost always start exploring new data with the `visdat` package. It lets me see at a glance the data types, as well as any missing data:
+
+```{r visdat, fig.width=10, fig.height=10}
+visdat::vis_dat(coffee)
+```
+
+I doubt very much I'll want to use all of these columns, especially since I only have `r nrow(coffee)` rows of data. But some of the columns I do like the look of have missing values, and those will need to be dealt with.
+
+I'll be looking at `cupper_points` as a measure of coffee quality, although I've seen some analyses on this data use `total_cup_points`. The `cupper_points` score ranges from `r min(coffee$cupper_points)` to `r max(coffee$cupper_points)`, presumably with 10 being the best. I was curious which countries produce the best coffee, I made a ggplot that makes use of the `ggridges` package to produce density plots:
+
+```{r coffee-plot, fig.width=10, fig.height=5, warning = FALSE, message = FALSE}
+coffee %>% 
+  filter(!is.na(country_of_origin)) %>%
+  inner_join(
+    coffee %>%
+      group_by(country_of_origin) %>% 
+      summarise(n = n(), average_cupper_points = mean(cupper_points)) %>%
+      filter(n / sum(n) > 0.01),
+    by = "country_of_origin"
+  ) %>% 
+  ggplot(aes(
+    x = cupper_points,
+    y = fct_reorder(country_of_origin, average_cupper_points),
+    fill = average_cupper_points
+  )) + 
+  ggridges::geom_density_ridges() +
+  xlim(5, 10) +
+  scale_fill_gradient(low = "#A8805C", high = "#5F3622") +
+  ggtitle("Coffee quality by country of origin") +
+  xlab("cupper points") +
+  ylab(NULL) +
+  theme_minimal(base_size = 16, base_family = "Montserrat") +
+  theme(legend.position = "none")
+```
+
+# Modelling
+
+It's time to make a model! First I'll generate an 80/20 train/test split:
+
+```{r coffee-sample}
+set.seed(123)
+coffee_split <- initial_split(coffee, prop = 0.8)
+coffee_train <- training(coffee_split)
+coffee_test <- testing(coffee_split)
+```
+
+The split between test and train is sacred. I start a model by splitting out the test data, and then I forget that it exists until it's time to evaluate my model. If I introduce any information from `coffee_test` into `coffee_train` then I can't trust my model metrics, since I would have no way of knowing if my model is overfitting. This is called _data leakage_.
+
+It is very easy to accidentally leak data from test to train. Suppose I have some missing values that I want to impute with the mean. If I impute using the mean of the entire data set, then that's data leakage. Suppose I scale and centre my numeric variables. I use the mean and variance of the entire data set, then that's data leakage.
+
+The usual methods of manipulating data often aren't suitable for preprocessing modelling data. It's easy enough to centre and scale a variable with `mutate()`, but we need specialist tools for machine learning that respect the split between test and train. That's what `recipes` are for.
+
+## Preprocessing with recipes
+
+In `tidymodels`, [preprocessing is done with recipes](/post/user-recipes-for-data-processing/). There's a particular language for preprocessing with `recipes`, and it follows a common (and cute) theme. A `recipe` abstractly defines how to manipulate the data. It is then `prep`ared on a training set, and can be used to `bake` new data.
+
+Recipes require an understanding of which variables are predictors and which are outcomes (it would make no sense to preprocess the outcome of the test set). Traditionally in R we would specify a model with a formula, like `cupper_points ~ flavour + aroma`, or `cupper_points ~ .` if we want to use everything as a predictor. Instead, I'm going to use the "role" approach that `recipes` takes to declare some variables as predictors and `cupper_points` as an outcome. The rest will be "support" variables, some of which will be used in imputation. I like this approach, since it means that I don't need to maintain a list of variables to be fed to the `fit` function. Instead, the `fit` function will only use the variables with the "predictor" role.
+
+The recipe I'll use defines the steps below. Just a heads up: I'm not claiming that this is _good_ preprocessing. I haven't even seen what the impact of this preprocessing is on the resulting model. I'm just using this as an example of some preprocessing steps.
+
+1. Sets the roles of every variable in the data. A variable can have more than one role, but here we'll call everything either "outcome", "predictor", or "support". `tidymodels` treats "outcome" and "predictor" variables specially, but otherwise any string can be a role.
+1. Convert all strings to factors. You read that right.
+1. Impute `country_of_origin`, and then `altitude_mean_meters` using k-nearest-neighbours with a handful of other variables.
+1. Convert all missing varieties to an "unknown" value.
+1. Collapse `country_of_origin`, `processing_method` and `variety` levels so that infrequently occurring values are collapsed to "other".
+1. Centre and scale all numeric variables.
+
+```{r coffee-recipe}
+coffee_recipe <- recipe(coffee_train) %>%
+  update_role(everything(), new_role = "support") %>% 
+  update_role(cupper_points, new_role = "outcome") %>%
+  update_role(
+    variety, processing_method, country_of_origin,
+    aroma, flavor, aftertaste, acidity, sweetness, altitude_mean_meters,
+    new_role = "predictor"
+  ) %>%
+  step_string2factor(all_nominal(), -all_outcomes()) %>%
+  step_knnimpute(country_of_origin,
+                 impute_with = imp_vars(
+                 in_country_partner, company, region, farm_name, certification_body
+                 )
+  ) %>%
+  step_knnimpute(altitude_mean_meters,
+                 impute_with = imp_vars(
+                 in_country_partner, company, region, farm_name, certification_body,
+                 country_of_origin
+                 )
+  ) %>%
+  step_unknown(variety, processing_method, new_level = "unknown") %>%
+  step_other(country_of_origin, threshold = 0.01) %>%
+  step_other(processing_method, variety, threshold = 0.10) %>% 
+  step_normalize(all_numeric(), -all_outcomes())
+coffee_recipe
+```
+
+I won't actually need to `prep` or `bake` anything here, since that's all handled for me behind the scenes in the `workflow` step below. But just to demonstrate, I'll briefly remember that the test data exists and bake it with this recipe. The baked test data below contains no missing `processing_method` values. It does, however, contain "unknown" and "Other".
+
+```{r recipes-prep-and-bake}
+coffee_recipe %>% 
+  prep(coffee_train) %>%
+  bake(coffee_test) %>%
+  count(processing_method)
+```
+
+## Model specification
+
+An issue with R's distributed package ecosystem is that the same variable can have multiple names across different packages. For example, `ranger` and `randomForest` are packages used to train random forests, but where `ranger` uses `num.trees` to define the number of trees in the forest, `randomForest` uses `ntree`. Under `tidymodels`, these names are standardised to `trees`. Moreover, the same standard name is used for other models where "number of trees" is a valid concept, such as boosted trees.
+
+Note that I'm setting the hyperparameters with `tune()`, which means that I expect to fill these values in later. Think of `tune()` as a placeholder. Apart from `trees`, the other hyperparameter I'm looking at is `mtry`. When splitting a branch in a random forest, the algorithm doesn't have access to all of the variables. It's only provided with a certain number of randomly chosen variables, and it must select the best one to use to split the data. This number of random variables is `mtry`.
+
+The "engine" here determines what will be used to fit the model. `tidymodels` wraps machine learning package, and it has no capacity to train a model by itself. I'm using the `ranger` package as the engine here, but I could also use the `randomForest` package.
+
+```{r coffee-model}
+coffee_model <- rand_forest(
+    trees = tune(),
+    mtry = tune()
+  ) %>%
+  set_engine("ranger") %>% 
+  set_mode("regression")
+coffee_model
+```
+
+I haven't provided any data to the model specification. Just as in Python's `sklearn`, in `tidymodels` models are defined in a separate step to fitting. The above is just a _specification_ for a model.
+
+## Workflows
+
+A `workflow` combines a preprocessing recipe and a model specification. Once I've introduced the recipe, all of the preprocessing will be handled for me.
+
+```{r coffee-workflow}
+coffee_workflow <- workflow() %>% 
+  add_recipe(coffee_recipe) %>% 
+  add_model(coffee_model)
+coffee_workflow
+```
+
+## Hyperparameter tuning
+
+Earlier I set some hyperparameters with `tune()`, so I'll need to explore which values I can assign to them. I'll create a grid of values to explore. Most of these hyperparameters have sensible defaults, but I'll define my own to be explicit about what I'm doing.
+
+```{r coffee-grid}
+coffee_grid <- expand_grid(mtry = 3:5, trees = seq(500, 1500, by = 200))
+```
+
+I'll use cross-validation on `coffee_train` to evaluate the performance of each combination of hyperparameters. 
+
+```{r coffee-folds}
+set.seed(123)
+coffee_folds <- vfold_cv(coffee_train, v = 5)
+coffee_folds
+```
+
+Here's where we search through the hyperparameter space. With `r nrow(coffee_folds)` folds and `r nrow(coffee_grid)` combinations of hyperparameters to explore, R has to train and evaluate `r nrow(coffee_folds) * nrow(coffee_grid)` models. In general, this sort of tuning takes a while. I could speed this up with parallel processing, but I'm not sure it's worth the hassle for such a small data set.
+
+```{r coffee-grid-results, cache = TRUE}
+coffee_grid_results <- coffee_workflow %>% 
+  tune_grid(
+    resamples = coffee_folds,
+    grid = coffee_grid
+  )
+```
+
+Now it's time to see how the models performed! I'll look at root mean squared error to evaluate this model:
+
+```{r collect_metrics}
+collect_metrics(coffee_grid_results) %>%
+    filter(.metric == "rmse") %>% 
+    arrange(mean) %>%
+    head() %>% 
+    knitr::kable()
+```
+
+`tidymodels` also comes with some nice auto-plotting functionality for model metrics:
+
+```{r coffee-grid-results-rmse-plot}
+autoplot(coffee_grid_results, metric = "rmse")
+```
+
+The goal is to minimise RMSE. I can take a look at the hyperparameter combinations that optimise this value:
+
+```{r select-best}
+show_best(coffee_grid_results, metric = "rmse") %>% knitr::kable()
+```
+
+The issue I have here is that 1500 trees is a lot^[Adding more trees to a random forest doesn't make the model overfit, or have any other detriment on model performance. But additional trees do carry a computational cost, in both model training and prediction. It's good to keep the number as low as possible without harming model performance.]. When I look at the plot above I can see that 500 trees does pretty well. It may not be the best, but it's one third as complex.
+
+I think it's worth cutting back on accuracy a tiny bit if it means simplifying the model a lot. `tidymodels` contains a function that does just this. I'll ask for the combination of hyperparameters that minimises the number of trees in the random forest, while not being more than 5% away from the best combination overall:
+
+```{r select-least-complex}
+select_by_pct_loss(coffee_grid_results, metric = "rmse", limit = 5, trees) %>%
+  knitr::kable()
+```
+
+## Model fitting
+
+I can't fit a model with undefined hyperparameters. I'll use the above combination to "finalise" the model. Every hyperparameter that I set to "tune" will be set to the result of `select_by_pct_loss`.
+
+That's everything I need to fit a model. I have a preprocessing recipe, a model specification, and a nice set of hyperparameters. All that's left to call is `fit`:
+
+```{r fit_model}
+fitted_coffee_model <- coffee_workflow %>% 
+  finalize_workflow(
+    select_by_pct_loss(coffee_grid_results, metric = "rmse", limit = 5, trees)
+  ) %>% 
+  fit(coffee_train)
+```
+
+## Model evaluation
+
+Now that I have a model I can remember that my test set exists. I'll look at a handful of metrics to see how the model performs. `metrics_set(rmse, mae, rsq)` is a function that returns a function that compares the true and predicted values. It returns the root mean squared error, mean absolute error, and R squared value.
+
+I'm using some possibly non-idiomatic R code below. `metric_set(rmse, mae, rsq)` returns a function, so I can immediately call it as a function. This leads to two sets of parameters in brackets right next to each other. There's nothing _wrong_ with this, but I don't know if it's good practice:
+
+```{r metrics-table}
+fitted_coffee_model %>%
+  predict(coffee_test) %>%
+  metric_set(rmse, mae, rsq)(coffee_test$cupper_points, .pred)
+```
+
+# Targets
+
+There are a lot of steps involved in fitting and evaluating this model, so it would help to have a way to orchestrate the whole process. [Normally I would use the `drake` package for this](/post/upgrade-your-workflow-with-drake/) but Will Landau, its creator and maintainer, has been working on [a spiritual successor called targets](https://github.com/wlandau/targets). This is an **experimental** package right now, but I thought I'd give it a go for this.
+
+`targets` will look very familiar to users of `drake`. [Will has laid out some reasons for creating a separate package](https://wlandau.github.io/targets/articles/need.html). `drake` uses _plans_, which are R objects. `targets` takes a similar approach with its _pipelines_. However, `targets` requires that the pipeline be defined in a specific `_targets.R` file. This file can can also set up required functions and objects for the pipeline, and load necessary packages. The requirement is that it ends with a `targets` pipeline.
+
+I've put all of the steps required to fit and evaluate this model into a `targets` pipeline. The recipe is lengthy, and likely to change often as I refine my preprocessing approach. It's best to create a function `define_coffee_recipe` and place it in a file somewhere in my project (probably the `R/` directory). I can then source it it within `_targets.R`. This way, I can change the preprocessing approach without changing the model pipeline. In a complicated project, it would be best to do this for most of the targets, especially the model definition and metrics.
+
+A pipeline consists of a set of `tar_target`s. The first argument of each is a name for the target, and the second is the command that generates the target's output. Just as with `drake`, a pipieline should consist of pure functions: no side-effects, with each target defined only by its inputs and its output. This way, `targets` can automatically detect the dependencies of each target. A convenient consequence of this is that the order in which the targets are provided is irrelevant, as the package is able to work it out from the dependencies alone.
+
+My `_targets.R` file with the pipeline is below. Note that the data retrieval step ("coffee") uses a "never" cue. Like `drake`, the `targets` package automatically works out when a step has been invalidated and needs to be rerun. The "never" cue tells `targets` to never run the "coffee" step unless the result isn't cached. I can do this because I'm confident that the TidyTuesday data will never change.
+
+```{r targets-file, eval = FALSE}
+library(targets)
+source("R/define_coffee_recipe.R")
+
+tar_options(packages = c("tidyverse", "tidymodels"))
+
+tar_pipeline(
+  tar_target(
+    coffee,
+    tidytuesdayR::tt_load(2020, week = 28)$coffee,
+    cue = tar_cue("never")
+  ),
+  tar_target(coffee_split, initial_split(coffee, prop = 0.8)),
+  tar_target(coffee_train, training(coffee_split)),
+  tar_target(coffee_test, testing(coffee_split)),
+  tar_target(coffee_recipe, define_coffee_recipe(coffee_train)),
+  tar_target(
+    coffee_model,
+    rand_forest(
+      trees = tune(),
+      mtry = tune()
+    ) %>% set_engine("ranger") %>% set_mode("regression")
+  ),
+  tar_target(
+    coffee_workflow,
+    workflow() %>% add_recipe(coffee_recipe) %>% add_model(coffee_model)
+  ),
+  tar_target(
+    coffee_grid,
+    expand_grid(mtry = 3:5, trees = seq(500, 1500, by = 200))
+  ),
+  tar_target(
+    coffee_grid_results,
+    coffee_workflow %>%
+        tune_grid(resamples = vfold_cv(coffee_train, v = 5), grid = coffee_grid)
+  ),
+  tar_target(
+    hyperparameters,
+    select_by_pct_loss(coffee_grid_results, metric = "rmse", limit = 5, trees)
+  ),
+  tar_target(
+    fitted_coffee_model,
+    coffee_workflow %>% finalize_workflow(hyperparameters) %>% fit(coffee_train)
+  ),
+  tar_target(
+    metrics,
+    fitted_coffee_model %>%
+      predict(coffee_test) %>%
+      metric_set(rmse, mae, rsq)(coffee_test$cupper_points, .pred)
+  )
+)
+```
+
+As long as this `_targets.R` file exists in the working directory the `targets` package will be able to pick it up and use it. The graph at the top of this page was generated with `tar_visnetwork()` (no argument necessary). The pipeline can be run with `tar_make()`.
+
+What I love about this orchestration is that I can see where the dependencies are used. I can be sure that the test data isn't used for preprocessing, or hyperparameter tuning. And it's just such a pretty plot!
+
+***
+```{r sessioninfo}
+devtools::session_info()
+```
+
