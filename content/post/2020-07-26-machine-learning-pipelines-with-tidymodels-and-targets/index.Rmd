@@ -75,13 +75,13 @@ The split between test and train is sacred. I start a model by splitting out the
 
 It is very easy to accidentally leak data from test to train. Suppose I have some missing values that I want to impute with the mean. If I impute using the mean of the entire data set, then that's data leakage. Suppose I scale and centre my numeric variables. I use the mean and variance of the entire data set, then that's data leakage.
 
-The usual methods of manipulating data often aren't suitable for preprocessing modelling data. It's easy enough to centre and scale a variable with `mutate()`, but we need specialist tools for machine learning that respect the split between test and train. That's what `recipes` are for.
+The usual methods of manipulating data often aren't suitable for preprocessing modelling data. It's easy enough to centre and scale a variable with `mutate()`, but data manipulation for machine learning requires tools that respect the split between test and train. That's what `recipes` are for.
 
 ## Preprocessing with recipes
 
 In `tidymodels`, [preprocessing is done with recipes](/post/user-recipes-for-data-processing/). There's a particular language for preprocessing with `recipes`, and it follows a common (and cute) theme. A `recipe` abstractly defines how to manipulate the data. It is then `prep`ared on a training set, and can be used to `bake` new data.
 
-Recipes require an understanding of which variables are predictors and which are outcomes (it would make no sense to preprocess the outcome of the test set). Traditionally in R we would specify a model with a formula, like `cupper_points ~ flavour + aroma`, or `cupper_points ~ .` if we want to use everything as a predictor. Instead, I'm going to use the "role" approach that `recipes` takes to declare some variables as predictors and `cupper_points` as an outcome. The rest will be "support" variables, some of which will be used in imputation. I like this approach, since it means that I don't need to maintain a list of variables to be fed to the `fit` function. Instead, the `fit` function will only use the variables with the "predictor" role.
+Recipes require an understanding of which variables are predictors and which are outcomes (it would make no sense to preprocess the outcome of the test set). Traditionally in R this is done with a formula, like `cupper_points ~ flavour + aroma`, or `cupper_points ~ .` if everything as a predictor. Instead, I'm going to use the "role" approach that `recipes` takes to declare some variables as predictors and `cupper_points` as an outcome. The rest will be "support" variables, some of which will be used in imputation. I like this approach, since it means that I don't need to maintain a list of variables to be fed to the `fit` function. Instead, the `fit` function will only use the variables with the "predictor" role.
 
 The recipe I'll use defines the steps below. Just a heads up: I'm not claiming that this is _good_ preprocessing. I haven't even seen what the impact of this preprocessing is on the resulting model. I'm just using this as an example of some preprocessing steps.
 
@@ -176,7 +176,7 @@ coffee_folds <- vfold_cv(coffee_train, v = 5)
 coffee_folds
 ```
 
-Here's where we search through the hyperparameter space. With `r nrow(coffee_folds)` folds and `r nrow(coffee_grid)` combinations of hyperparameters to explore, R has to train and evaluate `r nrow(coffee_folds) * nrow(coffee_grid)` models. In general, this sort of tuning takes a while. I could speed this up with parallel processing, but I'm not sure it's worth the hassle for such a small data set.
+Here's where I search through the hyperparameter space. With `r nrow(coffee_folds)` folds and `r nrow(coffee_grid)` combinations of hyperparameters to explore, R has to train and evaluate `r nrow(coffee_folds) * nrow(coffee_grid)` models. In general, this sort of tuning takes a while. I could speed this up with parallel processing, but I'm not sure it's worth the hassle for such a small data set.
 
 ```{r coffee-grid-results, cache = TRUE}
 coffee_grid_results <- coffee_workflow %>% 

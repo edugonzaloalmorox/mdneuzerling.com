@@ -45,3 +45,4 @@ rsconnect/
 .Rproj.user
 .drake
 artefacts
+*cache*
