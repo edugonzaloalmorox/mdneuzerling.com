@@ -7,11 +7,11 @@ tags:
     - R
 images: ["/img/coffee-pipeline.png"]
 output: hugodown::md_document
-rmd_hash: 62823082669ef4f0
+rmd_hash: 5f3e18607f7d3629
 
 ---
 
-There aren't enough `tidymodels` examples on the Internet. Here's a simple machine learning model using the recent *coffee* Tidy Tuesday data set. The plot above gives the approach: I'll define some preprocessing and a model, optimise some hyperparameters, and fit and evaluate the result. And I'll piece all of the components together using `targets`, an experimental successor to the `drake` package that I love so much.
+There's always a need for more `tidymodels` examples on the Internet. Here's a simple machine learning model using the recent *coffee* Tidy Tuesday data set. The plot above gives the approach: I'll define some preprocessing and a model, optimise some hyperparameters, and fit and evaluate the result. And I'll piece all of the components together using `targets`, an experimental successor to the `drake` package that I love so much.
 
 As usual, I don't care too much about the model itself. I'm more interested in the process.
 

@@ -20,7 +20,7 @@ tidy_tuesday <- tidytuesdayR::tt_load(2020, week = 28)
 coffee <- tidy_tuesday$coffee_ratings
 ```
 
-There aren't enough `tidymodels` examples on the Internet. Here's a simple machine learning model using the recent _coffee_ Tidy Tuesday data set. The plot above gives the approach: I'll define some preprocessing and a model, optimise some hyperparameters, and fit and evaluate the result. And I'll piece all of the components together using `targets`, an experimental successor to the `drake` package that I love so much.
+There's always a need for more `tidymodels` examples on the Internet. Here's a simple machine learning model using the recent _coffee_ Tidy Tuesday data set. The plot above gives the approach: I'll define some preprocessing and a model, optimise some hyperparameters, and fit and evaluate the result. And I'll piece all of the components together using `targets`, an experimental successor to the `drake` package that I love so much.
 
 As usual, I don't care too much about the model itself. I'm more interested in the process.
 
