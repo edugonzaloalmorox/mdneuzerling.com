@@ -7,7 +7,7 @@ tags:
     - R
 images: ["/img/coffee-pipeline.png"]
 output: hugodown::md_document
-rmd_hash: 00a9c431b40be18b
+rmd_hash: 62823082669ef4f0
 
 ---
 
@@ -96,6 +96,8 @@ The recipe I'll use defines the steps below. Just a heads up: I'm not claiming t
 4.  Convert all missing varieties to an "unknown" value.
 5.  Collapse `country_of_origin`, `processing_method` and `variety` levels so that infrequently occurring values are collapsed to "other".
 6.  Centre and scale all numeric variables.
+
+[Many thanks to Julia Silge for helping me define this recipe](https://stackoverflow.com/questions/63008228/tidymodels-tune-grid-cant-subset-columns-that-dont-exist-when-not-using-for)!
 
 <div class="highlight">
 
@@ -462,7 +464,7 @@ What I love about this orchestration is that I can see where the dependencies ar
 <span class='c'>#&gt;  collate  en_AU.UTF-8                 </span>
 <span class='c'>#&gt;  ctype    en_AU.UTF-8                 </span>
 <span class='c'>#&gt;  tz       Australia/Melbourne         </span>
-<span class='c'>#&gt;  date     2020-07-26                  </span>
+<span class='c'>#&gt;  date     2020-07-27                  </span>
 <span class='c'>#&gt; </span>
 <span class='c'>#&gt; ─ Packages ───────────────────────────────────────────────────────────────────</span>
 <span class='c'>#&gt;  package     * version    date       lib source                            </span>

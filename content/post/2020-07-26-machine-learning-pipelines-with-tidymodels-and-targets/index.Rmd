@@ -93,6 +93,8 @@ The recipe I'll use defines the steps below. Just a heads up: I'm not claiming t
 1. Collapse `country_of_origin`, `processing_method` and `variety` levels so that infrequently occurring values are collapsed to "other".
 1. Centre and scale all numeric variables.
 
+[Many thanks to Julia Silge for helping me define this recipe](https://stackoverflow.com/questions/63008228/tidymodels-tune-grid-cant-subset-columns-that-dont-exist-when-not-using-for)!
+
 ```{r coffee-recipe}
 coffee_recipe <- recipe(coffee_train) %>%
   update_role(everything(), new_role = "support") %>% 
