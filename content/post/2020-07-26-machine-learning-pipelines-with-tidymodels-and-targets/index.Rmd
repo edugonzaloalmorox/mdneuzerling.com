@@ -12,6 +12,7 @@ output: hugodown::md_document
 ```{r setup, include=FALSE, cache=FALSE}
 library(tidyverse)
 library(tidymodels)
+library(targets)
 ```
 
 ```{r data-load, include=FALSE, cache=TRUE}

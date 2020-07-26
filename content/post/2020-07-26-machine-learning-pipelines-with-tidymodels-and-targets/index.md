@@ -7,7 +7,7 @@ tags:
     - R
 images: ["/img/coffee-pipeline.png"]
 output: hugodown::md_document
-rmd_hash: cb78b59e809c4d1e
+rmd_hash: 00a9c431b40be18b
 
 ---
 
@@ -79,14 +79,14 @@ The split between test and train is sacred. I start a model by splitting out the
 
 It is very easy to accidentally leak data from test to train. Suppose I have some missing values that I want to impute with the mean. If I impute using the mean of the entire data set, then that's data leakage. Suppose I scale and centre my numeric variables. I use the mean and variance of the entire data set, then that's data leakage.
 
-The usual methods of manipulating data often aren't suitable for preprocessing modelling data. It's easy enough to centre and scale a variable with `mutate()`, but we need specialist tools for machine learning that respect the split between test and train. That's what `recipes` are for.
+The usual methods of manipulating data often aren't suitable for preprocessing modelling data. It's easy enough to centre and scale a variable with `mutate()`, but data manipulation for machine learning requires tools that respect the split between test and train. That's what `recipes` are for.
 
 Preprocessing with recipes
 --------------------------
 
 In `tidymodels`, [preprocessing is done with recipes](/post/user-recipes-for-data-processing/). There's a particular language for preprocessing with `recipes`, and it follows a common (and cute) theme. A `recipe` abstractly defines how to manipulate the data. It is then `prep`ared on a training set, and can be used to `bake` new data.
 
-Recipes require an understanding of which variables are predictors and which are outcomes (it would make no sense to preprocess the outcome of the test set). Traditionally in R we would specify a model with a formula, like `cupper_points ~ flavour + aroma`, or `cupper_points ~ .` if we want to use everything as a predictor. Instead, I'm going to use the "role" approach that `recipes` takes to declare some variables as predictors and `cupper_points` as an outcome. The rest will be "support" variables, some of which will be used in imputation. I like this approach, since it means that I don't need to maintain a list of variables to be fed to the `fit` function. Instead, the `fit` function will only use the variables with the "predictor" role.
+Recipes require an understanding of which variables are predictors and which are outcomes (it would make no sense to preprocess the outcome of the test set). Traditionally in R this is done with a formula, like `cupper_points ~ flavour + aroma`, or `cupper_points ~ .` if everything as a predictor. Instead, I'm going to use the "role" approach that `recipes` takes to declare some variables as predictors and `cupper_points` as an outcome. The rest will be "support" variables, some of which will be used in imputation. I like this approach, since it means that I don't need to maintain a list of variables to be fed to the `fit` function. Instead, the `fit` function will only use the variables with the "predictor" role.
 
 The recipe I'll use defines the steps below. Just a heads up: I'm not claiming that this is *good* preprocessing. I haven't even seen what the impact of this preprocessing is on the resulting model. I'm just using this as an example of some preprocessing steps.
 
@@ -100,7 +100,7 @@ The recipe I'll use defines the steps below. Just a heads up: I'm not claiming t
 <div class="highlight">
 
 <pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>coffee_recipe</span> <span class='o'>&lt;-</span> <span class='nf'>recipe</span>(<span class='k'>coffee_train</span>) <span class='o'>%&gt;%</span>
-  <span class='nf'>update_role</span>(<span class='nf'>everything</span>(), new_role = <span class='s'>"support"</span>) <span class='o'>%&gt;%</span> 
+  <span class='nf'>update_role</span>(<span class='nf'><a href='https://tidyselect.r-lib.org/reference/everything.html'>everything</a></span>(), new_role = <span class='s'>"support"</span>) <span class='o'>%&gt;%</span> 
   <span class='nf'>update_role</span>(<span class='k'>cupper_points</span>, new_role = <span class='s'>"outcome"</span>) <span class='o'>%&gt;%</span>
   <span class='nf'>update_role</span>(
     <span class='k'>variety</span>, <span class='k'>processing_method</span>, <span class='k'>country_of_origin</span>,
@@ -260,7 +260,7 @@ I'll use cross-validation on `coffee_train` to evaluate the performance of each 
 
 </div>
 
-Here's where we search through the hyperparameter space. With 5 folds and 18 combinations of hyperparameters to explore, R has to train and evaluate 90 models. In general, this sort of tuning takes a while. I could speed this up with parallel processing, but I'm not sure it's worth the hassle for such a small data set.
+Here's where I search through the hyperparameter space. With 5 folds and 18 combinations of hyperparameters to explore, R has to train and evaluate 90 models. In general, this sort of tuning takes a while. I could speed this up with parallel processing, but I'm not sure it's worth the hassle for such a small data set.
 
 <div class="highlight">
 
@@ -285,12 +285,12 @@ Now it's time to see how the models performed! I'll look at root mean squared er
 
 |  mtry|  trees| .metric | .estimator |       mean|    n|   std\_err| .config |
 |-----:|------:|:--------|:-----------|----------:|----:|----------:|:--------|
-|     3|   1500| rmse    | standard   |  0.6578480|    5|  0.1435745| Model06 |
-|     3|   1100| rmse    | standard   |  0.6585869|    5|  0.1433251| Model04 |
-|     3|    500| rmse    | standard   |  0.6596345|    5|  0.1437608| Model01 |
-|     3|    700| rmse    | standard   |  0.6599965|    5|  0.1437455| Model02 |
-|     3|   1300| rmse    | standard   |  0.6600544|    5|  0.1434096| Model05 |
-|     3|    900| rmse    | standard   |  0.6603797|    5|  0.1435015| Model03 |
+|     3|   1500| rmse    | standard   |  0.3127119|    5|  0.0565917| Model06 |
+|     3|   1100| rmse    | standard   |  0.3129998|    5|  0.0563920| Model04 |
+|     3|    500| rmse    | standard   |  0.3136543|    5|  0.0565772| Model01 |
+|     3|    700| rmse    | standard   |  0.3137247|    5|  0.0565831| Model02 |
+|     3|   1300| rmse    | standard   |  0.3137998|    5|  0.0564674| Model05 |
+|     3|    900| rmse    | standard   |  0.3139521|    5|  0.0565038| Model03 |
 
 </div>
 
@@ -313,11 +313,11 @@ The goal is to minimise RMSE. I can take a look at the hyperparameter combinatio
 
 |  mtry|  trees| .metric | .estimator |       mean|    n|   std\_err| .config |
 |-----:|------:|:--------|:-----------|----------:|----:|----------:|:--------|
-|     3|   1500| rmse    | standard   |  0.6578480|    5|  0.1435745| Model06 |
-|     3|   1100| rmse    | standard   |  0.6585869|    5|  0.1433251| Model04 |
-|     3|    500| rmse    | standard   |  0.6596345|    5|  0.1437608| Model01 |
-|     3|    700| rmse    | standard   |  0.6599965|    5|  0.1437455| Model02 |
-|     3|   1300| rmse    | standard   |  0.6600544|    5|  0.1434096| Model05 |
+|     3|   1500| rmse    | standard   |  0.3127119|    5|  0.0565917| Model06 |
+|     3|   1100| rmse    | standard   |  0.3129998|    5|  0.0563920| Model04 |
+|     3|    500| rmse    | standard   |  0.3136543|    5|  0.0565772| Model01 |
+|     3|    700| rmse    | standard   |  0.3137247|    5|  0.0565831| Model02 |
+|     3|   1300| rmse    | standard   |  0.3137998|    5|  0.0564674| Model05 |
 
 </div>
 
@@ -331,9 +331,9 @@ I think it's worth cutting back on accuracy a tiny bit if it means simplifying t
   <span class='k'>knitr</span>::<span class='nf'><a href='https://rdrr.io/pkg/knitr/man/kable.html'>kable</a></span>()
 </code></pre>
 
-|  mtry|  trees| .metric | .estimator |       mean|    n|   std\_err| .config |     .best|     .loss|
-|-----:|------:|:--------|:-----------|----------:|----:|----------:|:--------|---------:|---------:|
-|     5|    500| rmse    | standard   |  0.6668716|    5|  0.1404409| Model13 |  0.657848|  1.371686|
+|  mtry|  trees| .metric | .estimator |       mean|    n|   std\_err| .config |      .best|     .loss|
+|-----:|------:|:--------|:-----------|----------:|----:|----------:|:--------|----------:|---------:|
+|     5|    500| rmse    | standard   |  0.3172264|    5|  0.0549082| Model13 |  0.3127119|  1.443642|
 
 </div>
 
@@ -477,6 +477,7 @@ What I love about this orchestration is that I can see where the dependencies ar
 <span class='c'>#&gt;  codetools     0.2-16     2018-12-24 [4] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  colorspace    1.4-1      2019-03-18 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  crayon        1.3.4      2017-09-16 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  data.table    1.13.0     2020-07-24 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  DBI           1.1.0      2019-12-15 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  dbplyr        1.4.4      2020-05-27 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  desc          1.2.0      2018-05-01 [1] CRAN (R 4.0.0)                    </span>
@@ -510,6 +511,7 @@ What I love about this orchestration is that I can see where the dependencies ar
 <span class='c'>#&gt;  htmltools     0.5.0      2020-06-16 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  httr          1.4.2      2020-07-20 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  hugodown      0.0.0.9000 2020-07-25 [1] Github (r-lib/hugodown@3980496)   </span>
+<span class='c'>#&gt;  igraph        1.2.5      2020-03-19 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  infer       * 0.5.3      2020-07-14 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  ipred         0.9-9      2019-04-28 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  iterators     1.0.12     2019-07-26 [1] CRAN (R 4.0.0)                    </span>
@@ -562,6 +564,7 @@ What I love about this orchestration is that I can see where the dependencies ar
 <span class='c'>#&gt;  stringi       1.4.6      2020-02-17 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  stringr     * 1.4.0      2019-02-10 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  survival      3.1-12     2020-04-10 [4] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  targets     * 0.0.0.9000 2020-07-25 [1] Github (wlandau/targets@1455610)  </span>
 <span class='c'>#&gt;  testthat      2.3.2      2020-03-02 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  tibble      * 3.0.3      2020-07-10 [1] CRAN (R 4.0.0)                    </span>
 <span class='c'>#&gt;  tidymodels  * 0.1.1      2020-07-14 [1] CRAN (R 4.0.0)                    </span>
