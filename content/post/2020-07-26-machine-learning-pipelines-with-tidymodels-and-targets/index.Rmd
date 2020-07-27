@@ -154,7 +154,7 @@ I haven't provided any data to the model specification. Just as in Python's `skl
 
 ## Workflows
 
-A `workflow` combines a preprocessing recipe and a model specification. Once I've introduced the recipe, all of the preprocessing will be handled for me.
+A `workflow` combines a preprocessing recipe and a model specification. By creating a workflow, all of the preprocessing will be handled for me when fitting the model and when generating new predictions.
 
 ```{r coffee-workflow}
 coffee_workflow <- workflow() %>% 

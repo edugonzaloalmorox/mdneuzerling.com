@@ -7,7 +7,7 @@ tags:
     - R
 images: ["/img/coffee-pipeline.png"]
 output: hugodown::md_document
-rmd_hash: 350ca323b4220f07
+rmd_hash: ce8ea9e516a58fc5
 
 ---
 
@@ -198,7 +198,7 @@ I haven't provided any data to the model specification. Just as in Python's `skl
 Workflows
 ---------
 
-A `workflow` combines a preprocessing recipe and a model specification. Once I've introduced the recipe, all of the preprocessing will be handled for me.
+A `workflow` combines a preprocessing recipe and a model specification. By creating a workflow, all of the preprocessing will be handled for me when fitting the model and when generating new predictions.
 
 <div class="highlight">
 
