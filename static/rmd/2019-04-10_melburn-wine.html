@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+  <head>
+    <title>LIME Wine</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="@mdneuzerling" />
+    <meta name="date" content="2019-04-10" />
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+    <script src="libs/kePrint-0.0.1/kePrint.js"></script>
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# LIME Wine
+## Melbourne Users of R Network (MelbURN)<br/><a href="https://github.com/mdneuzerling/melburn-wine/" class="uri">https://github.com/mdneuzerling/melburn-wine/</a>
+### <span class="citation">@mdneuzerling</span>
+### 2019-04-10
+
+---
+
+## Data load
+
+
+
+.pull-left[
+
+```r
+wine &lt;- "winemag-data-130k-v2.csv" %&gt;% 
+  read_csv %&gt;%
+  rename(index = X1) %&gt;% 
+  mutate(
+    variety = variety %&gt;% tolower,
+    # missing data filled from description
+    variety = ifelse(
+      index == 86909, 
+      "petite syrah", 
+      variety
+    ) 
+  )
+```
+
+
+```r
+wine %&gt;% 
+    sample_n(30000) %&gt;% 
+    visdat::vis_dat()
+```
+]
+
+.pull-right[
+&lt;img src="2019-04-10_melburn-wine_files/figure-html/wine_vis_dat_out-1.png" width="500" height="500" /&gt;
+]
+
+---
+## Points
+
+.pull-left[
+Wine is rated from 80 to 100 *points*:
+
+
+```r
+red_wine_colour &lt;- "#59121C"
+white_wine_colour &lt;- "#EADB9F"
+rosé_wine_colour &lt;- "#F5C0A2"
+wine_plot_colours &lt;- c(
+  "red" = red_wine_colour, 
+  "white" = white_wine_colour,
+  "rosé" = rosé_wine_colour
+)
+```
+
+
+```r
+wine %&gt;% ggplot(aes(x = points)) + 
+  geom_histogram(
+    bins = nrow(wine %&gt;% distinct(points)),
+    colour = white_wine_colour,
+    fill = red_wine_colour
+  )
+```
+
+Thanks to Deanna Neuzerling for the colour scheme!
+]
+
+.pull-right[
+&lt;img src="2019-04-10_melburn-wine_files/figure-html/wine_point_histogram_out-1.png" width="500" height="500" /&gt;
+]
+
+---
+class: inverse
+## Wine colours
+
+I like red wine. I don't like white wine.
+
+&lt;center&gt;
+&lt;img src="wine-tasting-notes.jpg" alt="The top half of a page of wine tasting notes. The white wines are noted as tasting white. There are no notes for the red wines." style="width: 55%; height: 55%;"&gt;&lt;/img&gt;
+&lt;/center&gt;
+
+
+---
+## Wine colours
+
+.pull-left[
+Scraping wine colours with R:
+[https://mdneuzerling.com/post/scraping-wine-colours-with-r/](https://mdneuzerling.com/post/scraping-wine-colours-with-r/)
+
+
+```r
+wine &lt;- wine %&gt;% left_join(
+  read_csv("variety_colours.csv"),
+  by = "variety"
+)
+```
+
+
+```r
+wine %&gt;% 
+  ggplot(aes(x = colour, fill = colour)) + 
+  geom_bar() + 
+  scale_fill_manual(
+    values = wine_plot_colours
+  ) + 
+  ggtitle("Wine colours") +
+  theme(legend.position="none")
+```
+]
+
+.pull-right[
+&lt;img src="2019-04-10_melburn-wine_files/figure-html/wine_colours_plot_out-1.png" width="500" height="500" /&gt;
+]
+
+---
+## This is what an 80-point wine is like
+
+A 1998 French red blend:
+
+.pull-left[
+
+```r
+wine %&gt;% 
+    filter(index == 11086) %&gt;% 
+    select(description) %&gt;% 
+    paste0('&gt; ', .) %&gt;% # print as quote
+    cat
+```
+]
+
+.pull-right[
+&gt; Picture grandma standing over a pot of stewed prunes, which fill the dusty old house with their sickly aromas. Cooked, earthy and rustic, this wine has little going for it. Just barely acceptable.
+]
+
+---
+## Tennis balls?
+
+Tennis balls are mentioned in 7 wine reviews. This Californian sauvignon blanc got 88 points:
+
+.pull-left[
+
+```r
+wine %&gt;% 
+    filter(index == 12834) %&gt;% 
+    select(description) %&gt;% 
+    paste0('&gt; ', .) %&gt;% # print as quote
+    cat
+```
+]
+
+.pull-right[
+&gt; Quite grassy and brisk in style, this wine releases generous aromas of cut tennis ball, wet cement and sour limes. That citrusy acidity and sour-grass energy picks up lime pith, green-apple skins and a touch of white pepper on the palate, a very classic profile.
+]
+
+---
+## Word frequency
+
+.pull-left[
+
+```r
+wine_words &lt;- wine %&gt;% 
+  tidytext::unnest_tokens(
+    word, 
+    description
+  ) %&gt;% 
+  anti_join(
+    tidytext::stop_words, 
+    by = "word"
+  ) 
+```
+]
+
+.pull-right[
+
+```r
+wine_words %&gt;% 
+  select(index, word) %&gt;% 
+  head %&gt;% 
+  output_table
+```
+
+&lt;table class="table" style="width: auto !important; margin-left: auto; margin-right: auto;"&gt;
+ &lt;thead&gt;
+  &lt;tr&gt;
+   &lt;th style="text-align:right;"&gt; index &lt;/th&gt;
+   &lt;th style="text-align:left;"&gt; word &lt;/th&gt;
+  &lt;/tr&gt;
+ &lt;/thead&gt;
+&lt;tbody&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:right;"&gt; 0 &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; aromas &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:right;"&gt; 0 &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; include &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:right;"&gt; 0 &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; tropical &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:right;"&gt; 0 &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; fruit &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:right;"&gt; 0 &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; broom &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:right;"&gt; 0 &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; brimstone &lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+]
+
+---
+## Word frequency
+
+.pull-left[
+
+```r
+wine_words %&gt;%
+  count(word, colour, sort = TRUE) %&gt;%
+  head(20) %&gt;%
+  mutate(word = reorder(word, n)) %&gt;%
+  ggplot(aes(word, n, fill = colour)) +
+  geom_col() + 
+  scale_fill_manual(
+    values = wine_plot_colours
+  ) +
+  xlab(NULL) +
+  theme(text = element_text(size = 16)) +
+  coord_flip() +
+  ggtitle("Frequency of words") +
+  theme(legend.position = "none")
+```
+]
+
+.pull-right[
+&lt;img src="2019-04-10_melburn-wine_files/figure-html/wine_1grams_plot_out-1.png" width="500" height="500" /&gt;
+]
+
+---
+## Word frequency
+
+.pull-left[
+I'm not sure what purpose word clouds serve, but they seem compulsory at this point.
+
+
+```r
+wine_words %&gt;%
+  count(word) %&gt;%
+  with(
+    wordcloud::wordcloud(
+      word, 
+      n, 
+      max.words = 100
+    )
+  )
+```
+]
+
+.pull-right[
+&lt;img src="2019-04-10_melburn-wine_files/figure-html/word_cloud_out-1.png" width="500" height="500" /&gt;
+]
+
+---
+## 2-gram frequency
+
+.pull-left[
+
+```r
+wine_2grams &lt;- wine %&gt;%  
+  tidytext::unnest_tokens(
+    ngram, 
+    description, 
+    token = "ngrams", 
+    n = 2
+  ) %&gt;% 
+  separate(
+    ngram, 
+    c("word1", "word2"), 
+    sep = " ", 
+    remove = FALSE
+  ) %&gt;% 
+  filter_at(
+    vars(starts_with("word")), 
+    all_vars(
+      !(. %in% tidytext::stop_words$word)
+    )
+  )
+```
+]
+
+.pull-right[
+
+```r
+wine_2grams %&gt;% 
+  select(index, ngram, word1, word2) %&gt;% 
+  head %&gt;% 
+  output_table
+```
+
+&lt;table class="table" style="width: auto !important; margin-left: auto; margin-right: auto;"&gt;
+ &lt;thead&gt;
+  &lt;tr&gt;
+   &lt;th style="text-align:right;"&gt; index &lt;/th&gt;
+   &lt;th style="text-align:left;"&gt; ngram &lt;/th&gt;
+   &lt;th style="text-align:left;"&gt; word1 &lt;/th&gt;
+   &lt;th style="text-align:left;"&gt; word2 &lt;/th&gt;
+  &lt;/tr&gt;
+ &lt;/thead&gt;
+&lt;tbody&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:right;"&gt; 0 &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; aromas include &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; aromas &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; include &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:right;"&gt; 0 &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; include tropical &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; include &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; tropical &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:right;"&gt; 0 &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; tropical fruit &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; tropical &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; fruit &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:right;"&gt; 0 &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; fruit broom &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; fruit &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; broom &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:right;"&gt; 0 &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; broom brimstone &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; broom &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; brimstone &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:right;"&gt; 0 &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; dried herb &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; dried &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; herb &lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+]
+
+---
+## 2-gram frequency
+
+.pull-left[
+
+```r
+wine_2grams %&gt;%
+  count(ngram, colour, sort = TRUE) %&gt;%
+  head(20) %&gt;%
+  mutate(ngram = reorder(ngram, n)) %&gt;%
+  ggplot(aes(ngram, n, fill = colour)) +
+  geom_col() +
+  scale_fill_manual(
+    values = wine_plot_colours
+  ) +
+  xlab(NULL) +
+  coord_flip() + 
+  ggtitle("Frequency of 2-grams") +
+  theme(legend.position = "none")
+```
+]
+
+.pull-right[
+&lt;img src="2019-04-10_melburn-wine_files/figure-html/wine_2grams_plot_out-1.png" width="500" height="500" /&gt;
+]
+
+---
+## Train and test
+
+We're about to do some modelling. Let's prepare our train and test sets:
+
+```r
+wine_split &lt;- rsample::initial_split(wine, p = 0.80)
+wine_train &lt;- rsample::training(wine_split)
+wine_test &lt;- rsample::testing(wine_split)
+```
+
+---
+class: inverse
+## Vectorising
+
+We'll be loosely following [Shirin Glander's](https://shirinsplayground.netlify.com/2018/07/explaining_ml_models_code_text_lime/) approach to preprocessing here, which identifies the following steps:
+
+1. stem and tokenise
+1. generate a vocabulary
+1. remove stop words 
+1. prune the vocabulary 
+1. transform into a vector space 
+
+--
+
+We need a function that maps an **arbitrary string** onto this vector space.
+
+---
+## Stem and tokenise
+
+.pull-left[
+
+```r
+stem_tokeniser &lt;- function(x) {
+    lapply(
+        text2vec::word_tokenizer(x), 
+        SnowballC::wordStem, 
+        language = "en"
+    )
+}
+```
+]
+
+.pull-right[
+
+```r
+stem_tokeniser(
+  "Dreaming sufficient identical usually"
+)
+```
+
+```
+## [[1]]
+## [1] "Dream"   "suffici" "ident"   "usual"
+```
+
+
+```r
+stem_tokeniser(
+  "information informed informing informs"
+)
+```
+
+```
+## [[1]]
+## [1] "inform" "inform" "inform" "inform"
+```
+]
+
+---
+## Generate a vocabulary, remove stop words and prune
+
+.pull-left[
+
+```r
+wine_train_tokens &lt;- text2vec::itoken(
+  wine_train$description, 
+  preprocessor = tolower, 
+  tokenizer = stem_tokeniser,
+  progressbar = FALSE
+)
+
+vocabulary &lt;- text2vec::create_vocabulary(
+  wine_train_tokens, 
+  stopwords = c(
+    tidytext::stop_words$word, 
+    "wine", "fruit", "flavour", "flavor"
+  )
+) %&gt;% 
+  text2vec::prune_vocabulary(
+    doc_proportion_min = 0.01,
+    doc_proportion_max = 0.80
+  )
+```
+]
+
+.pull-right[
+
+```r
+vocabulary
+```
+
+```
+## Number of docs: 103977 
+## 1153 stopwords: a, a's, able, about, above, according ... 
+## ngram_min = 1; ngram_max = 1 
+## Vocabulary: 
+##          term term_count doc_count
+##   1:    boast       1045      1042
+##   2:   brambl       1051      1048
+##   3:  graphit       1055      1050
+##   4: pomegran       1063      1042
+##   5:   featur       1064      1063
+##  ---                              
+## 362:    drink      27353     26774
+## 363:    palat      30899     30222
+## 364:     acid      31878     30886
+## 365:   finish      32266     31960
+## 366:    aroma      32777     32332
+```
+]
+
+---
+class: inverse
+## Vectoriser
+
+Our `vectoriser` will take an arbitrary string and map it to these 366 stemmed terms. 
+
+Any new terms will be **ignored**.
+
+
+```r
+vectoriser &lt;- vocabulary %&gt;% text2vec::vocab_vectorizer()
+```
+
+---
+## Document term matrices
+
+* Every column is one of our 366 terms
+* Every row is a wine review
+* Values are weighted by *term frequency–inverse document frequency (tf-idf)*
+
+
+```r
+wine_train_dtm &lt;- text2vec::create_dtm(wine_train_tokens, vectorizer = vectoriser)
+tfidf = text2vec::TfIdf$new()
+wine_train_dtm = tfidf$fit_transform(wine_train_dtm)
+dim(wine_train_dtm)
+```
+
+```
+## [1] 103977    366
+```
+
+---
+## Document term matrices
+
+
+```r
+paste0('&gt; ', wine[1,]$description) %&gt;% cat
+```
+
+&gt; Aromas include tropical fruit, broom, brimstone and dried herb. The palate isn't overly expressive, offering unripened apple, citrus and dried sage alongside brisk acidity.
+
+
+```r
+tail(as.matrix(wine_train_dtm)[1,], 21)
+```
+
+```
+##      offer       plum      light       nose        oak      berri 
+## 0.14049216 0.00000000 0.00000000 0.00000000 0.00000000 0.00000000 
+##        red      fresh       rich      spice       note        dri 
+## 0.00000000 0.00000000 0.00000000 0.00000000 0.00000000 0.22228822 
+##      black       ripe     tannin     cherri      drink      palat 
+## 0.00000000 0.00000000 0.00000000 0.00000000 0.00000000 0.08237110 
+##       acid     finish      aroma 
+## 0.08092229 0.00000000 0.07787209
+```
+
+---
+## Mapping new data to a DTM
+
+The vocabulary and document frequency is determined **only** by the training set. If we get a new observation, it has to conform.
+
+```r
+map_to_dtm &lt;- function(text) {
+  tokens &lt;- text2vec::itoken(
+    text, 
+    preprocess_function = tolower, 
+    tokenizer = stem_tokeniser,
+    progressbar = FALSE
+  )
+
+  dtm &lt;- text2vec::create_dtm(tokens, vectoriser)
+  tfidf$transform(dtm) # transform uses the tfidf already fitted
+}
+```
+
+---
+## xgboost
+
+
+```r
+xgb &lt;- xgboost::xgb.train(
+  list(
+    max_depth = 8, 
+    eta = 0.05, 
+    objective = "reg:linear",
+    eval_metric = "rmse"
+  ),
+  data = xgboost::xgb.DMatrix(
+    wine_train_dtm, 
+    label = wine_train$points
+  ),
+  nrounds = 300
+)
+```
+
+
+```r
+wine_test_preds &lt;- predict(xgb, map_to_dtm(wine_test$description))
+caret::postResample(wine_test_preds, wine_test$points)
+```
+
+```
+##      RMSE  Rsquared       MAE 
+## 2.1059337 0.5379716 1.6511223
+```
+
+---
+## xgboost
+
+.pull-left[
+&lt;img src="2019-04-10_melburn-wine_files/figure-html/actuals_distribution-1.png" width="500" height="500" /&gt;
+]
+
+.pull-right[
+&lt;img src="2019-04-10_melburn-wine_files/figure-html/predicted_distribution-1.png" width="500" height="500" /&gt;
+]
+
+---
+## xgboost
+
+
+```r
+wine_test_residuals &lt;- wine_test_preds - wine_test$points
+wine_test %&gt;% 
+  ggplot(aes(x = points, y = wine_test_residuals, group = points)) + 
+  geom_violin(fill = red_wine_colour) +
+  labs(title = "actuals vs. residuals", x = "actuals", y = "residuals") 
+```
+
+&lt;img src="2019-04-10_melburn-wine_files/figure-html/xgboost_residuals_actuals-1.png" width="800" height="350" /&gt;
+
+---
+class:center
+## Model performance summary
+
+&lt;img src="2019-04-10_melburn-wine_files/figure-html/smily_eyes-1.png" width="500" height="250" /&gt;
+
+&lt;img src="2019-04-10_melburn-wine_files/figure-html/smiley_mouth-1.png" width="500" height="250" /&gt;
+
+---
+class: inverse
+## LIME
+
+.pull-left[
+&lt;center&gt;
+&lt;img src="lime-logo.png" alt="The logo for the lime package for R. It's a green hexagonal logo that looks like the inside of a lime fruit." style="width: 40%; height: 40%;"&gt;&lt;/img&gt;
+&lt;/center&gt;
+]
+
+.pull-right[
+
+&gt;There once was a package called lime,
+
+&gt;Whose models were simply sublime,
+
+&gt;It gave explanations for their variations,
+
+&gt;one observation at a time.
+
+*lime-rick* by Mara Averick
+]
+
+---
+## LIME
+
+* Original paper: [https://arxiv.org/abs/1602.04938](https://arxiv.org/abs/1602.04938)
+* R package: [https://github.com/thomasp85/lime](https://github.com/thomasp85/lime)
+* Python module: [https://github.com/marcotcr/lime](https://github.com/marcotcr/lime)
+
+&lt;center&gt;
+&lt;img src="lime-paper.png" alt="A screenshot of a portion of the front page of the arxiv article linked above." style="width: 70%; height: 70%;"&gt;&lt;/img&gt;
+&lt;/center&gt;
+
+
+---
+## LIME
+
+LIME doesn't care about non-linear models, it just needs things to be *locally linear*:
+
+&lt;center&gt;
+&lt;img src="https://raw.githubusercontent.com/marcotcr/lime/master/doc/images/lime.png" alt="A rectangular graph. An irregularly shaped pink blob is on top of a blue background. A dashed line sits across a linear boundary between the blob and the background, demonstrating a separation of points immediately on either side. There are no axes or other quantitative information." style="width: 65%; height: 65%;"&gt;&lt;/img&gt;
+&lt;/center&gt;
+
+
+---
+## LIME
+
+
+```r
+# This example requires the magick package
+example_image_explanation &lt;- lime::.load_image_example() 
+lime::plot_image_explanation(example_image_explanation)
+```
+
+&lt;img src="2019-04-10_melburn-wine_files/figure-html/example_image_explanation-1.png" width="1000" height="400" /&gt;
+
+## LIME
+---
+## Permutations
+
+### Wine 78883, 80 points
+
+&gt; "Tastes sour and bone dry, with grapefruit flavors."
+
+Prediction: 83.81 points
+
+--
+&gt; "Tastes sour and bone dry, with ~~grapefruit~~ flavors."
+
+Prediction: 83.81 points
+
+--
+&gt; "Tastes ~~sour~~ and bone dry with grapefruit flavors."
+
+Prediction: 86.11 points
+
+--
+&gt; "Tastes ~~sour~~ and bone ~~dry~~, with grapefruit flavors."
+
+Prediction: 87.3 points
+
+---
+## Permutations
+
+### Wine 84890, 86 points
+
+&gt; "This is certainly dry, as stated, but it doesn't have the texture and stuffing that the best dry Rieslings bring to the show. Simple and straightforward lemon and grapefruit flavors tell the whole story, and those high acids leave a sour impression."
+
+Prediction: 85.57 points
+
+--
+&gt; "This is certainly dry, as stated, but it doesn't have the texture and stuffing that the best dry Rieslings bring to the show. Simple and straightforward lemon and ~~grapefruit~~ flavors tell the whole story, and those high acids leave a sour impression."
+
+Prediction: 84.36 points
+
+---
+## LIME
+
+
+```r
+wine_explainer &lt;- lime::lime(
+  wine$description,
+  xgb,
+  preprocess = map_to_dtm
+)
+```
+
+---
+## LIME
+
+
+
+.pull-left[
+
+&gt; Oak completely overwhelms this wine. All you can smell and taste is char, caramel and wood spice, and the tannins, which are partly from oak barrels, are dense and hard. It's difficult even to discern any underlying fruit flavors, although if you try hard, you stumble across blackberries.
+
+
+```r
+sample_wine &lt;- filter(wine, index == 14072)
+sample_wine_explanation &lt;- lime::explain(
+  sample_wine$description,
+  wine_explainer,
+  n_features = 10
+)
+```
+
+
+```r
+custom_lime_explanation_plot(
+  sample_wine_explanation, sample_wine 
+)
+```
+]
+
+.pull-right[
+&lt;img src="2019-04-10_melburn-wine_files/figure-html/wine_a_explanation_plot_out-1.png" width="500" height="500" /&gt;
+]
+
+---
+## LIME
+
+.pull-left[
+
+&gt; Picked at 33 brix and fermented in new French oak, this heavy, almost oily dessert wine has a floral aroma as intense as bottled perfume. Flavors suggest orange liqueur, honey and candied apricots. It pulls together just enough acidity to avoid falling into a fat, cloying finish.
+
+
+
+
+]
+
+.pull-right[
+&lt;img src="2019-04-10_melburn-wine_files/figure-html/wine_b_explanation_plot_out-1.png" width="500" height="500" /&gt;
+]
+
+---
+## LIME
+
+.pull-left[
+
+&gt; It takes only a few moments before you appreciate the enormity, intensity and overall beauty of this landmark wine. Cerretalto is always a high scoring expression of Brunello, but the ideal conditions of the 2007 vintage elevate it to earthly perfection. Dark and fleshy, the wine delivers ever-evolving aromas of dark fruit, chocolate, spice and tobacco. The acidity is carefully balanced against the wine's thickness and rich texture. The finish is long, luscious and elegant. Keep this bottle in your cellar 10 years or more.
+
+
+
+
+]
+
+.pull-right[
+&lt;img src="2019-04-10_melburn-wine_files/figure-html/wine_c_explanation_plot_out-1.png" width="500" height="500" /&gt;
+]
+
+---
+## LIME
+
+.pull-left[
+
+&gt; Rubbery, animal-like aromas are low on fruit. The palate is shrill and dominated by sharp acidity. Sour, herbal and pinched tasting, this is tart and green overall.
+
+
+
+
+]
+
+.pull-right[
+&lt;img src="2019-04-10_melburn-wine_files/figure-html/wine_d_explanation_plot_out-1.png" width="500" height="500" /&gt;
+]
+
+---
+## Categorical predictions
+
+The LIME package comes with an interactive shiny application for text explainers. It only works with classification models, so let's make one. We'll set the boundary between a good and a bad wine as the mean of the training set, 88.4 points.
+
+
+```r
+wine_train &lt;- wine_train %&gt;% mutate(
+  good_or_bad = ifelse(points &gt; mean(wine_train$points), "good", "bad")
+)
+
+wine_test &lt;- wine_test %&gt;% mutate(
+  good_or_bad = ifelse(points &gt; mean(wine_train$points), "good", "bad")
+)
+```
+
+---
+## Categorical predictions
+
+```r
+xgb_classification &lt;- xgboost::xgb.train(
+  list(
+    max_depth = 8,
+    eta = 0.05, 
+    objective = "binary:logistic",
+    eval_metric = "error"
+  ),
+  data = xgboost::xgb.DMatrix(
+    wine_train_dtm, 
+    label = wine_train$good_or_bad == "good"
+  ),
+  nrounds = 200
+)
+```
+
+
+---
+## Categorical predictions
+
+.pull-left[
+
+```r
+wine_categorical_preds &lt;- predict(
+  xgb_classification, 
+  map_to_dtm(wine_test$description)
+)
+
+cm &lt;- caret::confusionMatrix(
+  as.factor(
+    as.numeric(
+      wine_test$good_or_bad == "good"
+    )
+  ),
+  as.factor(round(
+    wine_categorical_preds, 
+    digits = 0
+  ))
+)
+```
+]
+
+.pull-right[
+
+```r
+cm$table
+```
+
+```
+##           Reference
+## Prediction     0     1
+##          0 11764  1853
+##          1  4182  8195
+```
+
+
+```r
+scales::percent(cm$overall[["Accuracy"]])
+```
+
+```
+## [1] "76.8%"
+```
+]
+
+---
+class: inverse
+## Interactive text explanations
+
+
+```r
+wine_classification_explainer &lt;- lime::lime(
+  wine$description,
+  xgb_classification,
+  preprocess = map_to_dtm
+)
+lime::interactive_text_explanations(wine_classification_explainer)
+```
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();</script>
+
+<script>
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
