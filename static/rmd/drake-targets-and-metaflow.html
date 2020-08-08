@@ -620,7 +620,7 @@ metaflow(&quot;coffee&quot;) %&gt;%
   ) %&gt;% 
   step(step = &quot;fit_model&quot;,
        r_function = stepfunc_fit_model,
-       next_step = c(&quot;validate_model&quot;)
+       next_step = &quot;validate_model&quot;)
   ) %&gt;% 
   step(step = &quot;validate_model&quot;,
        r_function = stepfunc_validate_model,
