@@ -116,7 +116,7 @@ log_metrics <- function(metrics, estimate = "standard") {
 
 ## Packaging workflows is pretty easy
 
-There's one last component I need to make this work. Apart from parameters and metrics, I can also store _artifacts_ with each run. These are usually models, but could be anything. MLflow supports exporting models with the `carrier::crate`. [This is a tricky function to use](/post/deploying-r-models-with-mlflow-and-docker/), since the user must comprehensively list their dependencies. For a `workflow` with a `recipe`, it's a lot easier. All of the preprocessing is contained within the recipe, and the fitted workflow object contains this.
+There's one last component I need to make this work. Apart from parameters and metrics, I can also store _artifacts_ with each run. These are usually models, but could be anything. MLflow supports exporting models with the `carrier::crate` function. [This is a tricky function to use](/post/deploying-r-models-with-mlflow-and-docker/), since the user must comprehensively list their dependencies. For a `workflow` with a `recipe`, it's a lot easier. All of the preprocessing is contained within the recipe, and the fitted workflow object contains this.
 
 ```{r crated-model, eval = FALSE}
 # I haven't yet defined fitted_coffee_model, so I won't run this
@@ -204,3 +204,8 @@ MLflow exports models through patterns known as _flavours_. [There are many flav
 A `tidymodels` flavour for workflows/parsnip models could be implemented through the `crate` flavour, as I've done above, or separately. This isn't as tricky as exporting arbitrary R code, since all of the preprocessing is done through the `recipes` package.
 
 The `tidymodels` framework also opens up the possibility of autologging. I've implemented some functions above that accomplish this, but they're a little rough. With a bit of polish, users could take advantage of MLflow with very little effort.
+
+***
+```{r sessioninfo}
+devtools::session_info()
+```

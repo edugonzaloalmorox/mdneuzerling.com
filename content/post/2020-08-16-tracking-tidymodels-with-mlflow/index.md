@@ -7,7 +7,7 @@ tags:
     - R
 images: ["/img/mlflow-tracking.png"]
 output: hugodown::md_document
-rmd_hash: 7afa2c7a0a57e523
+rmd_hash: b154c8cc477c92d4
 
 ---
 
@@ -148,7 +148,7 @@ Now I'll do the same for metrics. The input to this function will be a metrics t
 Packaging workflows is pretty easy
 ----------------------------------
 
-There's one last component I need to make this work. Apart from parameters and metrics, I can also store *artifacts* with each run. These are usually models, but could be anything. MLflow supports exporting models with the [`carrier::crate`](https://rdrr.io/pkg/carrier/man/crate.html). [This is a tricky function to use](/post/deploying-r-models-with-mlflow-and-docker/), since the user must comprehensively list their dependencies. For a `workflow` with a `recipe`, it's a lot easier. All of the preprocessing is contained within the recipe, and the fitted workflow object contains this.
+There's one last component I need to make this work. Apart from parameters and metrics, I can also store *artifacts* with each run. These are usually models, but could be anything. MLflow supports exporting models with the [`carrier::crate`](https://rdrr.io/pkg/carrier/man/crate.html) function. [This is a tricky function to use](/post/deploying-r-models-with-mlflow-and-docker/), since the user must comprehensively list their dependencies. For a `workflow` with a `recipe`, it's a lot easier. All of the preprocessing is contained within the recipe, and the fitted workflow object contains this.
 
 <div class="highlight">
 
@@ -193,9 +193,9 @@ To actually *do* an MLflow run, I wrap my model training and evaluation code in 
   <span class='nf'><a href='https://rdrr.io/pkg/mlflow/man/mlflow_save_model.html'>mlflow_save_model</a></span>(<span class='k'>crated_model</span>, <span class='k'>here</span>::<span class='nf'><a href='https://rdrr.io/pkg/here/man/here.html'>here</a></span>(<span class='s'>"models"</span>))
   <span class='nf'><a href='https://rdrr.io/pkg/mlflow/man/mlflow_log_artifact.html'>mlflow_log_artifact</a></span>(<span class='k'>here</span>::<span class='nf'><a href='https://rdrr.io/pkg/here/man/here.html'>here</a></span>(<span class='s'>"models"</span>, <span class='s'>"crate.bin"</span>))
 })
-<span class='c'>#&gt; <span style='color: #BB0000;'>2020/08/16 12:44:57 INFO mlflow.store.artifact.cli: Logged artifact from local file /home/mdneuzerling/mdneuzerling.com/models/crate.bin to artifact_path=None</span></span>
+<span class='c'>#&gt; <span style='color: #BB0000;'>2020/08/16 12:57:53 INFO mlflow.store.artifact.cli: Logged artifact from local file /home/mdneuzerling/mdneuzerling.com/models/crate.bin to artifact_path=None</span></span>
 <span class='c'><span style='color: #BB0000;'>#&gt; </span></span>
-<span class='c'>#&gt; Root URI: /home/mdneuzerling/Documents/coffee/mlruns/1/623a0a5c2cad4fcf9d4bfa0e14bfd739/artifacts</span></code></pre>
+<span class='c'>#&gt; Root URI: /home/mdneuzerling/Documents/coffee/mlruns/1/aad9c7168cdf4f32aebf1f9de376a504/artifacts</span></code></pre>
 
 </div>
 
@@ -269,6 +269,157 @@ MLflow exports models through patterns known as *flavours*. [There are many flav
 A `tidymodels` flavour for workflows/parsnip models could be implemented through the `crate` flavour, as I've done above, or separately. This isn't as tricky as exporting arbitrary R code, since all of the preprocessing is done through the `recipes` package.
 
 The `tidymodels` framework also opens up the possibility of autologging. I've implemented some functions above that accomplish this, but they're a little rough. With a bit of polish, users could take advantage of MLflow with very little effort.
+
+------------------------------------------------------------------------
+
+<div class="highlight">
+
+<pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>devtools</span>::<span class='nf'><a href='https://rdrr.io/pkg/sessioninfo/man/session_info.html'>session_info</a></span>()
+<span class='c'>#&gt; ─ Session info ───────────────────────────────────────────────────────────────</span>
+<span class='c'>#&gt;  setting  value                       </span>
+<span class='c'>#&gt;  version  R version 4.0.0 (2020-04-24)</span>
+<span class='c'>#&gt;  os       Ubuntu 20.04.1 LTS          </span>
+<span class='c'>#&gt;  system   x86_64, linux-gnu           </span>
+<span class='c'>#&gt;  ui       X11                         </span>
+<span class='c'>#&gt;  language en_AU:en                    </span>
+<span class='c'>#&gt;  collate  en_AU.UTF-8                 </span>
+<span class='c'>#&gt;  ctype    en_AU.UTF-8                 </span>
+<span class='c'>#&gt;  tz       Australia/Melbourne         </span>
+<span class='c'>#&gt;  date     2020-08-16                  </span>
+<span class='c'>#&gt; </span>
+<span class='c'>#&gt; ─ Packages ───────────────────────────────────────────────────────────────────</span>
+<span class='c'>#&gt;  package     * version    date       lib source                            </span>
+<span class='c'>#&gt;  askpass       1.1        2019-01-13 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  assertthat    0.2.1      2019-03-21 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  backports     1.1.8      2020-06-17 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  base64enc     0.1-3      2015-07-28 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  blob          1.2.1      2020-01-20 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  broom       * 0.7.0      2020-07-09 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  callr         3.4.3      2020-03-28 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  carrier       0.1.0      2018-10-16 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  cellranger    1.1.0      2016-07-27 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  class         7.3-17     2020-04-26 [4] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  cli           2.0.2      2020-02-28 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  codetools     0.2-16     2018-12-24 [4] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  colorspace    1.4-1      2019-03-18 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  crayon        1.3.4      2017-09-16 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  curl          4.3        2019-12-02 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  DBI           1.1.0      2019-12-15 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  dbplyr        1.4.4      2020-05-27 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  desc          1.2.0      2018-05-01 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  devtools      2.3.0      2020-04-10 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  dials       * 0.0.8      2020-07-08 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  DiceDesign    1.8-1      2019-07-31 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  digest        0.6.25     2020-02-23 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  downlit       0.0.0.9000 2020-07-25 [1] Github (r-lib/downlit@ed969d0)    </span>
+<span class='c'>#&gt;  dplyr       * 1.0.1      2020-07-31 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  ellipsis      0.3.1      2020-05-15 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  evaluate      0.14       2019-05-28 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  fansi         0.4.1      2020-01-08 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  forcats     * 0.5.0      2020-03-01 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  foreach       1.5.0      2020-03-30 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  forge         0.2.0      2019-02-26 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  fs            1.5.0      2020-07-31 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  furrr         0.1.0      2018-05-16 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  future        1.17.0     2020-04-18 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  generics      0.0.2      2018-11-29 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  ggplot2     * 3.3.2.9000 2020-08-07 [1] Github (tidyverse/ggplot2@6d91349)</span>
+<span class='c'>#&gt;  git2r         0.27.1     2020-05-03 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  globals       0.12.5     2019-12-07 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  glue          1.4.1      2020-05-13 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  gower         0.2.2      2020-06-23 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  GPfit         1.0-8      2019-02-08 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  gtable        0.3.0      2019-03-25 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  hardhat       0.1.4      2020-07-02 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  haven         2.2.0      2019-11-08 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  here          0.1        2017-05-28 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  hms           0.5.3      2020-01-08 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  htmltools     0.5.0      2020-06-16 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  httpuv        1.5.2      2019-09-11 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  httr          1.4.2      2020-07-20 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  hugodown      0.0.0.9000 2020-08-13 [1] Github (r-lib/hugodown@2af491d)   </span>
+<span class='c'>#&gt;  infer       * 0.5.3      2020-07-14 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  ini           0.3.1      2018-05-20 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  ipred         0.9-9      2019-04-28 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  iterators     1.0.12     2019-07-26 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  jsonlite      1.7.0      2020-06-25 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  knitr         1.29       2020-06-23 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  later         1.1.0.1    2020-06-05 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  lattice       0.20-41    2020-04-02 [4] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  lava          1.6.7      2020-03-05 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  lhs           1.0.2      2020-04-13 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  lifecycle     0.2.0      2020-03-06 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  listenv       0.8.0      2019-12-05 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  lubridate     1.7.9      2020-06-08 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  magrittr      1.5        2014-11-22 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  MASS          7.3-51.6   2020-04-26 [4] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  Matrix        1.2-18     2019-11-27 [4] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  memoise       1.1.0.9000 2020-05-09 [1] Github (hadley/memoise@4aefd9f)   </span>
+<span class='c'>#&gt;  mlflow      * 1.10.0     2020-07-21 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  modeldata   * 0.0.2      2020-06-22 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  modelr        0.1.6      2020-02-22 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  munsell       0.5.0      2018-06-12 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  nnet          7.3-14     2020-04-26 [4] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  openssl       1.4.2      2020-06-27 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  parsnip     * 0.1.2      2020-07-03 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  pillar        1.4.6      2020-07-10 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  pkgbuild      1.1.0      2020-07-13 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  pkgconfig     2.0.3      2019-09-22 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  pkgload       1.1.0      2020-05-29 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  plyr          1.8.6      2020-03-03 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  prettyunits   1.1.1      2020-01-24 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  pROC          1.16.2     2020-03-19 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  processx      3.4.3      2020-07-05 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  prodlim       2019.11.13 2019-11-17 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  promises      1.1.1      2020-06-09 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  ps            1.3.4      2020-08-11 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  purrr       * 0.3.4      2020-04-17 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  R6            2.4.1      2019-11-12 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  ranger        0.12.1     2020-01-10 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  Rcpp          1.0.5      2020-07-06 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  readr       * 1.3.1      2018-12-21 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  readxl        1.3.1      2019-03-13 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  recipes     * 0.1.13     2020-06-23 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  remotes       2.1.1      2020-02-15 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  reprex        0.3.0      2019-05-16 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  reticulate    1.16       2020-05-27 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  rlang         0.4.7      2020-07-09 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  rmarkdown     2.3.3      2020-08-13 [1] Github (rstudio/rmarkdown@204aa41)</span>
+<span class='c'>#&gt;  rpart         4.1-15     2019-04-12 [4] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  rprojroot     1.3-2      2018-01-03 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  rsample     * 0.0.7      2020-06-04 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  rstudioapi    0.11       2020-02-07 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  rvest         0.3.5      2019-11-08 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  scales      * 1.1.1      2020-05-11 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  sessioninfo   1.1.1      2018-11-05 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  stringi       1.4.6      2020-02-17 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  stringr     * 1.4.0      2019-02-10 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  survival      3.1-12     2020-04-10 [4] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  swagger       3.9.2      2018-03-23 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  testthat      2.3.2      2020-03-02 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  tibble      * 3.0.3      2020-07-10 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  tidymodels  * 0.1.1      2020-07-14 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  tidyr       * 1.1.1      2020-07-31 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  tidyselect    1.1.0      2020-05-11 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  tidyverse   * 1.3.0      2019-11-21 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  timeDate      3043.102   2018-02-21 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  tune        * 0.1.1      2020-07-08 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  usethis       1.6.1      2020-04-29 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  vctrs         0.3.2      2020-07-15 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  withr         2.2.0      2020-04-20 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  workflows   * 0.1.2      2020-07-07 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  xfun          0.16       2020-07-24 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  xml2          1.3.2      2020-04-23 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  yaml          2.2.1      2020-02-01 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  yardstick   * 0.0.7      2020-07-13 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt;  zeallot       0.1.0      2018-01-28 [1] CRAN (R 4.0.0)                    </span>
+<span class='c'>#&gt; </span>
+<span class='c'>#&gt; [1] /home/mdneuzerling/R/x86_64-pc-linux-gnu-library/4.0</span>
+<span class='c'>#&gt; [2] /usr/local/lib/R/site-library</span>
+<span class='c'>#&gt; [3] /usr/lib/R/site-library</span>
+<span class='c'>#&gt; [4] /usr/lib/R/library</span></code></pre>
+
+</div>
 
 [^1]: Here's an idea: use MLflow to track reports! Every report is an experiment, and every production of a report is a run.
 
