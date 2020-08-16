@@ -22,7 +22,7 @@ disableLanguages        = [""]
   highlightjsTheme      = "github"
   highlightjsLang       = ["r", "bash", "html", "css", "js", "toml"]
   viewMorePostsLink     = "/post/"
-  readingTime           = true
+  readingTime           = false
   # socialShare           = ["twitter", "facebook", "reddit", "linkedin",
   #                         "pinterest", "email"]
 
