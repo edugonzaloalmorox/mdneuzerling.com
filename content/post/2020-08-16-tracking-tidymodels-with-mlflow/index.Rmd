@@ -1,0 +1,206 @@
+---
+title: Tracking Tidymodels with MLflow
+author: ~
+date: '2020-08-16'
+slug: tracking-tidymodels-with-mlf  low
+tags:
+    - R
+images: ["/img/mlflow-tracking.png"]
+output: hugodown::md_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = FALSE)
+library(tidyverse)
+library(tidymodels)
+library(mlflow)
+```
+
+After I posted [my efforts to use MLflow to serve a model with R](/post/deploying-r-models-with-mlflow-and-docker/), I was worried that people may think I don't _like_ MLflow. I want to declare this: MLflow is awesome. I'll showcase its model tracking features, and how to integrate them into a `tidymodels` model.
+
+The Tracking component of MLflow can be used to record parameters, metrics and artifacts every time a model is trained. All of this information is presented in a very nice user interface. I'll also finish off here by demonstrating how to serve a model created with Tidymodels, which I find much easier than serving a model created with arbitrary code.
+
+## Prepare a model
+
+I'll prepare a model using the recent TidyTuesday coffee data. This is the same process I followed in [my last post](/post/machine-learning-pipelines-with-tidymodels-and-targets/), except I'll stop short of fitting and evaluating the model so I can track those steps with MLflow.
+
+```{r prepare-model, message = FALSE, warning = FALSE, cache = TRUE}
+coffee <- invisible(tidytuesdayR::tt_load(2020, week = 28)$coffee)
+coffee_split <- initial_split(coffee, prop = 0.8)
+coffee_train <- training(coffee_split)
+coffee_test <- testing(coffee_split)
+coffee_recipe <- recipe(coffee_train) %>%
+  update_role(everything(), new_role = "support") %>% 
+  update_role(cupper_points, new_role = "outcome") %>%
+  update_role(
+    variety, processing_method, country_of_origin,
+    aroma, flavor, aftertaste, acidity, sweetness, altitude_mean_meters,
+    new_role = "predictor"
+  ) %>%
+  step_string2factor(all_nominal(), -all_outcomes()) %>%
+  step_knnimpute(country_of_origin,
+                 impute_with = imp_vars(
+                   in_country_partner, company, region, farm_name, certification_body
+                 )
+  ) %>%
+  step_knnimpute(altitude_mean_meters,
+                 impute_with = imp_vars(
+                   in_country_partner, company, region, farm_name, certification_body,
+                   country_of_origin
+                 )
+  ) %>%
+  step_unknown(variety, processing_method, new_level = "Unknown") %>%
+  step_other(country_of_origin, threshold = 0.01) %>%
+  step_other(processing_method, threshold = 0.10) %>%
+  step_other(variety, threshold = 0.10) %>% 
+  step_normalize(all_numeric(), -all_outcomes())
+coffee_model <- rand_forest(trees = tune(), mtry = tune()) %>%
+  set_engine("ranger") %>%
+  set_mode("regression")
+coffee_workflow <- workflows::workflow() %>%
+  add_recipe(coffee_recipe) %>%
+  add_model(coffee_model)
+coffee_grid <- expand_grid(mtry = 3:5, trees = seq(500, 1500, by = 200))
+coffee_grid_results <- coffee_workflow %>%
+  tune_grid(resamples <- vfold_cv(coffee_train, v = 5), grid = coffee_grid)
+hyperparameters <- coffee_grid_results %>% 
+  select_by_pct_loss(metric = "rmse", limit = 5, trees)
+```
+
+```{r coffee-workflow}
+coffee_workflow
+```
+
+# Automatic tracking with workflows
+
+MLflow tracking is organised around _experiments_ and _runs_. Broadly speaking, an experiment is a _project_, whereas a run is a process in which a model is trained and evaluated. But these categories could be repurposed for anything^[Here's an idea: use MLflow to track reports! Every report is an experiment, and every production of a report is a run.].
+
+In each run the user can record _parameters_ and _metrics_. Parameters and metrics are both arbitrary key-value pairs that could be used for anything. In my coffee example, I might have parameters `trees: 500` and `mtry: 3`. My metric might be `mae: 0.2`. I would log this information with `mlflow_log_param("trees", 500)` or `mlflow_log_metric("mae", 0.2)`. That's all I need to do, and MLflow takes care of the rest.
+
+I'll be storing all of this information locally, with MLflow recording information in the `mlruns` directory in my working directory. Alternatively, [I could host my tracking information remotely, for example in a database](https://www.mlflow.org/docs/latest/tracking.html#where-runs-are-recorded).
+
+Certain kinds of Python model _flavours_, such as Tensorflow, have _autotracking_ in which parameters and metrics are automatically recorded. I'll try and implement a rough version of this for a Tidymodels `workflow`. I'm aiming for functions here that let me record parameters and metrics for any type of model implemented through as a Tidymodels `workflow`, so that I can change from a random forest to a linear model without adjusting my MLflow code.
+
+I'll start with a function for logging model hyperparameters as MLflow parameters. This function will only log hyperparameters set by the user, since the default values have a `NULL` expression, but I think that this approach makes sense. It also passes on the input workflow unmodified, so it's pipe-friendly:
+
+```{r log-workflow-parameters}
+log_workflow_parameters <- function(workflow) {
+  # Would help to have a check here: has this workflow been finalised?
+  # It may be sufficient to check that the arg quosures carry no environments.
+  spec <- workflows::pull_workflow_spec(workflow)
+  parameter_names <- names(spec$args)
+  parameter_values <- lapply(spec$args, rlang::get_expr)
+  for (i in seq_along(spec$args)) {
+    parameter_name <- parameter_names[[i]]
+    parameter_value <- parameter_values[[i]]
+    if (!is.null(parameter_value)) {
+      mlflow_log_param(parameter_name, parameter_value)
+    }
+  }
+  workflow
+}
+```
+
+Now I'll do the same for metrics. The input to this function will be a metrics tibble produced by the `yardstick` package, which is a component of `tidymodels`:
+
+```{r log-metrics}
+log_metrics <- function(metrics, estimate = "standard") {
+  metrics %>% filter(.estimator == estimate) %>% pmap(
+    function(.metric, .estimator, .estimate) {
+      mlflow_log_metric(.metric, .estimate)  
+    }
+  )
+  metrics
+}
+```
+
+## Packaging workflows is pretty easy
+
+There's one last component I need to make this work. Apart from parameters and metrics, I can also store _artifacts_ with each run. These are usually models, but could be anything. MLflow supports exporting models with the `carrier::crate`. [This is a tricky function to use](/post/deploying-r-models-with-mlflow-and-docker/), since the user must comprehensively list their dependencies. For a `workflow` with a `recipe`, it's a lot easier. All of the preprocessing is contained within the recipe, and the fitted workflow object contains this.
+
+```{r crated-model, eval = FALSE}
+# I haven't yet defined fitted_coffee_model, so I won't run this
+crated_model <- carrier::crate(
+  function(x) workflows:::predict.workflow(fitted_coffee_model, x),
+  fitted_coffee_model = fitted_coffee_model
+)
+```
+
+MLflow tracks _artifacts_ along with parameters and metrics. These are any files associated with the run, including models. I think the `mlflow_log_model` function should be used here, but it doesn't work for me. Instead I save the crated model with `mlflow_save_model` and log it with `mlflow_log_artifact`.
+
+## Tracking a model training run with MLflow
+
+I'll set my experiment as `coffee`. I only need to do this once per session:
+
+```{r set-experiment}
+mlflow_set_experiment(experiment_name = "coffee")
+```
+
+To actually _do_ an MLflow run, I wrap my model training and evaluation code in a `with(mlflow_start_run(), ...)` block. I insert my logging functions into my training code:
+
+```{r mlflow-run}
+with(mlflow_start_run(), {
+  fitted_coffee_model <- coffee_workflow %>%
+    finalize_workflow(hyperparameters) %>%
+    log_workflow_parameters() %>%  
+    fit(coffee_train)
+  metrics <- fitted_coffee_model %>%
+    predict(coffee_test) %>%
+    metric_set(rmse, mae, rsq)(coffee_test$cupper_points, .pred) %>% 
+    log_metrics()
+  crated_model <- carrier::crate(
+    function(x) workflows:::predict.workflow(fitted_coffee_model, x),
+    fitted_coffee_model = fitted_coffee_model
+  )
+  mlflow_save_model(crated_model, here::here("models"))
+  mlflow_log_artifact(here::here("models", "crate.bin"))
+})
+```
+
+I can see all the run information, stored as plain text, appearing in my `mlruns` directory now:
+
+```{r mlruns-example}
+fs::dir_tree("mlruns/1/f26b040f80244b00882d2925ebdc8396/")
+```
+
+I have a quibble here: I create an experiment with a name, but MLflow identifies experiments with an integer ID. It would be great if I could write `with(mlflow_start_run(experiment_name = "coffee"), ...)`, but only the `experiment_id` is supported. It's a minor point, but I'm not a fan of having that separate `mlflow_set_experiment` function there because it's a state that I have to manage in a functional language. The other issue here is that while my collaborators and I might all be using the same `experiment_name`, we don't know that we'll be on the same `experiment_id`.
+
+## Viewing runs with the MLflow UI
+
+MLflow comes with a gorgeous user interface for exploring previous model runs. I can run it with `mlflow_ui` and view it in my browser:
+
+![](mlflow-ui.png)
+
+A word of warning: the hyperparameters in this UI are placed directly next to the model metrics. When you place metrics of any kind in a dashboard, the numbers next to them are assumed to be the factors driving the numbers. The dashboard makes it look like I should be selecting the hyperparameters which reduce my error metrics.
+
+I've written before about data leakage, and how easy it is to do. I can't use the same test data to select my hyperparameters _and_ evaluate my model, because this leaks information from the test set to the model. But the UI places the hyperparameters next to the metrics, making it look as though I should be selecting the hyperparameters with the best metrics. It's not a big deal, and it's not a flaw of MLflow in particular, but it is something to not fall for.
+
+What I really like about this use of MLflow is that if there's an error in my model training run, MLflow will pick that up and record what it can, and label the run as an error in the UI:
+
+![](mlflow-ui-with-errors.png)
+
+## Serving coffee
+
+MLflow Models is the MLflow component used for serving exported models as APIs. I can serve my coffee model that I exported earlier with `mlflow_rfunc_serve("models")`. Since I'm overwriting this directory with each run (before I log the artifact with the run), this will be the last model to have been exported. This command will open up a Swagger UI, so I don't have to mess around with piecing together a HTTP request.
+
+To test this, I can try to predict the results of a random data point in the test set. Note the `na = "string"` argument here, since missing values will be incorrectly represented without it:
+
+```{r random_test_point, eval = FALSE}
+coffee_test %>% select(-cupper_points) %>% sample_n(1) %>% jsonlite::toJSON(na = "string")`
+```
+
+![](mlflow-prediction.png)
+
+It seems as though this method only serves one prediction at a time, even if multiple rows are provided.
+
+I could also have served this model through the command line with `mlflow models serve -m models/`.
+
+## `tidymodels` works really well with MLflow
+
+`tidymodels` presents an excellent opportunity to make life a bit easier for R users who want to take advantage of MLflow.
+
+MLflow exports models through patterns known as _flavours_. [There are many flavour available for Python](https://www.mlflow.org/docs/latest/models.html#built-in-model-flavors), but only `crate` and `keras` for R. `crate` does have the advantage of supporting arbitrary R code, however.
+
+A `tidymodels` flavour for workflows/parsnip models could be implemented through the `crate` flavour, as I've done above, or separately. This isn't as tricky as exporting arbitrary R code, since all of the preprocessing is done through the `recipes` package.
+
+The `tidymodels` framework also opens up the possibility of autologging. I've implemented some functions above that accomplish this, but they're a little rough. With a bit of polish, users could take advantage of MLflow with very little effort.
