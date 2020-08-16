@@ -7,7 +7,7 @@ tags:
     - R
 images: ["/img/mlflow-tracking.png"]
 output: hugodown::md_document
-rmd_hash: a6ec06aace13fbc6
+rmd_hash: 380bf41b83487ef5
 
 ---
 
@@ -193,9 +193,9 @@ To actually *do* an MLflow run, I wrap my model training and evaluation code in 
   <span class='nf'><a href='https://rdrr.io/pkg/mlflow/man/mlflow_save_model.html'>mlflow_save_model</a></span>(<span class='k'>crated_model</span>, <span class='k'>here</span>::<span class='nf'><a href='https://rdrr.io/pkg/here/man/here.html'>here</a></span>(<span class='s'>"models"</span>))
   <span class='nf'><a href='https://rdrr.io/pkg/mlflow/man/mlflow_log_artifact.html'>mlflow_log_artifact</a></span>(<span class='k'>here</span>::<span class='nf'><a href='https://rdrr.io/pkg/here/man/here.html'>here</a></span>(<span class='s'>"models"</span>, <span class='s'>"crate.bin"</span>))
 })
-<span class='c'>#&gt; <span style='color: #BB0000;'>2020/08/17 07:22:55 INFO mlflow.store.artifact.cli: Logged artifact from local file /home/mdneuzerling/mdneuzerling.com/models/crate.bin to artifact_path=None</span></span>
+<span class='c'>#&gt; <span style='color: #BB0000;'>2020/08/17 07:26:59 INFO mlflow.store.artifact.cli: Logged artifact from local file /home/mdneuzerling/mdneuzerling.com/models/crate.bin to artifact_path=None</span></span>
 <span class='c'><span style='color: #BB0000;'>#&gt; </span></span>
-<span class='c'>#&gt; Root URI: /home/mdneuzerling/Documents/coffee/mlruns/1/d94a4fbe1e1845eb96e6c758e9f4b37e/artifacts</span></code></pre>
+<span class='c'>#&gt; Root URI: /home/mdneuzerling/Documents/coffee/mlruns/1/9a9967e5ee0b4da580c770f6cab80f3a/artifacts</span></code></pre>
 
 </div>
 
@@ -231,7 +231,7 @@ MLflow comes with a gorgeous user interface for exploring previous model runs. I
 
 ![](mlflow-ui.png)
 
-A word of warning: the hyperparameters in this UI are placed directly next to the model metrics. When you place metrics of any kind in a dashboard, the numbers next to them are assumed to be the factors driving the numbers. The dashboard makes it look like I should be selecting the hyperparameters which reduce my error metrics.
+A word of warning: the hyperparameters in this UI are placed directly next to the model metrics. When you place metrics of any kind in a dashboard, the numbers next to them are assumed to be the factors driving those metrics. The dashboard makes it look like I should be selecting the hyperparameters which reduce my error metrics.
 
 I've written before about data leakage, and how easy it is to do. I can't use the same test data to select my hyperparameters *and* evaluate my model, because this leaks information from the test set to the model. But the UI places the hyperparameters next to the metrics, making it look as though I should be selecting the hyperparameters with the best metrics. It's not a big deal, and it's not a flaw of MLflow in particular, but it is something to not fall for.
 
