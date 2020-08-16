@@ -171,9 +171,9 @@ MLflow comes with a gorgeous user interface for exploring previous model runs. I
 
 ![](mlflow-ui.png)
 
-A word of warning: the hyperparameters in this UI are placed directly next to the model metrics. When you place metrics of any kind in a dashboard, the numbers next to them are assumed to be the factors driving those metrics. The dashboard makes it look like I should be selecting the hyperparameters which reduce my error metrics.
+A word of warning: the model hyperparameters in this UI are placed directly next to the model metrics. The dashboard makes it look like I should be selecting the hyperparameters which reduce my error metrics. I can't use the same test data to select my hyperparameters _and_ evaluate my model, because this leaks information from the test set to the model. But the UI places the hyperparameters next to the metrics, making it look as though I should be selecting the hyperparameters with the best metrics.
 
-I've written before about data leakage, and how easy it is to do. I can't use the same test data to select my hyperparameters _and_ evaluate my model, because this leaks information from the test set to the model. But the UI places the hyperparameters next to the metrics, making it look as though I should be selecting the hyperparameters with the best metrics. It's not a big deal, and it's not a flaw of MLflow in particular, but it is something to not fall for.
+This isn't a flaw of MLflow, though. One thing I could do here to make the data leakage trap easier to avoid is to log the "cross-validation RMSE" that was used to select the hyperparameters. If I include this is a column before the other metrics, it makes it clear what I used to select those `trees` and `mtry` values.
 
 What I really like about this use of MLflow is that if there's an error in my model training run, MLflow will pick that up and record what it can, and label the run as an error in the UI:
 
