@@ -46,5 +46,5 @@ rsconnect/
 .drake
 artefacts
 *cache*
-/mlruns/
+*mlruns*
 /models/
