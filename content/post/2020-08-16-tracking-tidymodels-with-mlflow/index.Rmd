@@ -2,7 +2,7 @@
 title: Tracking Tidymodels with MLflow
 author: ~
 date: '2020-08-16'
-slug: tracking-tidymodels-with-mlf  low
+slug: tracking-tidymodels-with-mlflow
 tags:
     - R
 images: ["/img/mlflow-tracking.png"]

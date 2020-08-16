@@ -2,12 +2,12 @@
 title: Tracking Tidymodels with MLflow
 author: ~
 date: '2020-08-16'
-slug: tracking-tidymodels-with-mlf  low
+slug: tracking-tidymodels-with-mlflow
 tags:
     - R
 images: ["/img/mlflow-tracking.png"]
 output: hugodown::md_document
-rmd_hash: b154c8cc477c92d4
+rmd_hash: 12a92258a5695cfd
 
 ---
 
@@ -193,9 +193,9 @@ To actually *do* an MLflow run, I wrap my model training and evaluation code in 
   <span class='nf'><a href='https://rdrr.io/pkg/mlflow/man/mlflow_save_model.html'>mlflow_save_model</a></span>(<span class='k'>crated_model</span>, <span class='k'>here</span>::<span class='nf'><a href='https://rdrr.io/pkg/here/man/here.html'>here</a></span>(<span class='s'>"models"</span>))
   <span class='nf'><a href='https://rdrr.io/pkg/mlflow/man/mlflow_log_artifact.html'>mlflow_log_artifact</a></span>(<span class='k'>here</span>::<span class='nf'><a href='https://rdrr.io/pkg/here/man/here.html'>here</a></span>(<span class='s'>"models"</span>, <span class='s'>"crate.bin"</span>))
 })
-<span class='c'>#&gt; <span style='color: #BB0000;'>2020/08/16 12:57:53 INFO mlflow.store.artifact.cli: Logged artifact from local file /home/mdneuzerling/mdneuzerling.com/models/crate.bin to artifact_path=None</span></span>
+<span class='c'>#&gt; <span style='color: #BB0000;'>2020/08/16 13:00:02 INFO mlflow.store.artifact.cli: Logged artifact from local file /home/mdneuzerling/mdneuzerling.com/models/crate.bin to artifact_path=None</span></span>
 <span class='c'><span style='color: #BB0000;'>#&gt; </span></span>
-<span class='c'>#&gt; Root URI: /home/mdneuzerling/Documents/coffee/mlruns/1/aad9c7168cdf4f32aebf1f9de376a504/artifacts</span></code></pre>
+<span class='c'>#&gt; Root URI: /home/mdneuzerling/Documents/coffee/mlruns/1/a0ed9341a79f4540a15012bd6cdaffcf/artifacts</span></code></pre>
 
 </div>
 
