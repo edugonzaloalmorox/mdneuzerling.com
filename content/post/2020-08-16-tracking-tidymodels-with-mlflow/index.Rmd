@@ -104,8 +104,8 @@ log_workflow_parameters <- function(workflow) {
 Now I'll do the same for metrics. The input to this function will be a metrics tibble produced by the `yardstick` package, which is a component of `tidymodels`:
 
 ```{r log-metrics}
-log_metrics <- function(metrics, estimate = "standard") {
-  metrics %>% filter(.estimator == estimate) %>% pmap(
+log_metrics <- function(metrics, estimator = "standard") {
+  metrics %>% filter(.estimator == estimator) %>% pmap(
     function(.metric, .estimator, .estimate) {
       mlflow_log_metric(.metric, .estimate)  
     }

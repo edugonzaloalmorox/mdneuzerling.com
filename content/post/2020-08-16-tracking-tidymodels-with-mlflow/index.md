@@ -7,7 +7,7 @@ tags:
     - R
 images: ["/img/mlflow-tracking.png"]
 output: hugodown::md_document
-rmd_hash: 12a92258a5695cfd
+rmd_hash: a6ec06aace13fbc6
 
 ---
 
@@ -134,8 +134,8 @@ Now I'll do the same for metrics. The input to this function will be a metrics t
 
 <div class="highlight">
 
-<pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>log_metrics</span> <span class='o'>&lt;-</span> <span class='nf'>function</span>(<span class='k'>metrics</span>, <span class='k'>estimate</span> = <span class='s'>"standard"</span>) {
-  <span class='k'>metrics</span> <span class='o'>%&gt;%</span> <span class='nf'><a href='https://rdrr.io/r/stats/filter.html'>filter</a></span>(<span class='k'>.estimator</span> <span class='o'>==</span> <span class='k'>estimate</span>) <span class='o'>%&gt;%</span> <span class='nf'>pmap</span>(
+<pre class='chroma'><code class='language-r' data-lang='r'><span class='k'>log_metrics</span> <span class='o'>&lt;-</span> <span class='nf'>function</span>(<span class='k'>metrics</span>, <span class='k'>estimator</span> = <span class='s'>"standard"</span>) {
+  <span class='k'>metrics</span> <span class='o'>%&gt;%</span> <span class='nf'><a href='https://rdrr.io/r/stats/filter.html'>filter</a></span>(<span class='k'>.estimator</span> <span class='o'>==</span> <span class='k'>estimator</span>) <span class='o'>%&gt;%</span> <span class='nf'>pmap</span>(
     <span class='nf'>function</span>(<span class='k'>.metric</span>, <span class='k'>.estimator</span>, <span class='k'>.estimate</span>) {
       <span class='nf'><a href='https://rdrr.io/pkg/mlflow/man/mlflow_log_metric.html'>mlflow_log_metric</a></span>(<span class='k'>.metric</span>, <span class='k'>.estimate</span>)  
     }
@@ -193,9 +193,9 @@ To actually *do* an MLflow run, I wrap my model training and evaluation code in 
   <span class='nf'><a href='https://rdrr.io/pkg/mlflow/man/mlflow_save_model.html'>mlflow_save_model</a></span>(<span class='k'>crated_model</span>, <span class='k'>here</span>::<span class='nf'><a href='https://rdrr.io/pkg/here/man/here.html'>here</a></span>(<span class='s'>"models"</span>))
   <span class='nf'><a href='https://rdrr.io/pkg/mlflow/man/mlflow_log_artifact.html'>mlflow_log_artifact</a></span>(<span class='k'>here</span>::<span class='nf'><a href='https://rdrr.io/pkg/here/man/here.html'>here</a></span>(<span class='s'>"models"</span>, <span class='s'>"crate.bin"</span>))
 })
-<span class='c'>#&gt; <span style='color: #BB0000;'>2020/08/16 13:00:02 INFO mlflow.store.artifact.cli: Logged artifact from local file /home/mdneuzerling/mdneuzerling.com/models/crate.bin to artifact_path=None</span></span>
+<span class='c'>#&gt; <span style='color: #BB0000;'>2020/08/17 07:22:55 INFO mlflow.store.artifact.cli: Logged artifact from local file /home/mdneuzerling/mdneuzerling.com/models/crate.bin to artifact_path=None</span></span>
 <span class='c'><span style='color: #BB0000;'>#&gt; </span></span>
-<span class='c'>#&gt; Root URI: /home/mdneuzerling/Documents/coffee/mlruns/1/a0ed9341a79f4540a15012bd6cdaffcf/artifacts</span></code></pre>
+<span class='c'>#&gt; Root URI: /home/mdneuzerling/Documents/coffee/mlruns/1/d94a4fbe1e1845eb96e6c758e9f4b37e/artifacts</span></code></pre>
 
 </div>
 
@@ -285,7 +285,7 @@ The `tidymodels` framework also opens up the possibility of autologging. I've im
 <span class='c'>#&gt;  collate  en_AU.UTF-8                 </span>
 <span class='c'>#&gt;  ctype    en_AU.UTF-8                 </span>
 <span class='c'>#&gt;  tz       Australia/Melbourne         </span>
-<span class='c'>#&gt;  date     2020-08-16                  </span>
+<span class='c'>#&gt;  date     2020-08-17                  </span>
 <span class='c'>#&gt; </span>
 <span class='c'>#&gt; ─ Packages ───────────────────────────────────────────────────────────────────</span>
 <span class='c'>#&gt;  package     * version    date       lib source                            </span>
