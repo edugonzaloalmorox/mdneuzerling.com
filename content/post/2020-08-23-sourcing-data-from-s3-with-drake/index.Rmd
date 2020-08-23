@@ -1,0 +1,200 @@
+---
+title: Sourcing Data from S3 with Drake
+author: ~
+date: '2020-08-23'
+slug: sourcing-data-from-s3-with-drake
+tags:
+    - R
+images: ["/img/drake-etag.png"]
+output: hugodown::md_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  cache = FALSE,
+  root.dir = here::here()
+)
+library(drake)
+```
+
+[`drake` is a package for orchestrating R workflows](https://docs.ropensci.org/drake/). Suppose I have some data in S3 that I want to pull into R through a `drake` plan. In this post I'll use the S3 object's _ETag_ to make `drake` only re-download the data if it's changed.
+
+This covers the scenario in which the object name in S3 stays the same. If I had, say, data being uploaded each day with an object name suffixed with the date, then I wouldn't bother checking for any changes.
+
+## Connecting to S3
+
+Both [the `aws.s3` package](https://github.com/cloudyr/aws.s3) and [the `PAWS` package](https://paws-r.github.io/) will connect to S3 from R. I've used both of these packages, and there's nothing wrong with them, but I always find myself going back to wrapping AWS CLI commands. I'm not saying this is the _best_ way to use AWS from within R, but it works, although I haven't tested this on anything other than Linux.
+
+By this point I've run `aws configure` in a terminal to make sure that I can actually connect to AWS. I've also created an S3 bucket.
+
+There are two ways to connect to S3 from the AWS CLI. `s3` commands are more high-level than `s3api` commands, but I'll need to use both here.
+
+## Uploading some data
+
+I'll start by uploading some CSV data to my bucket using an `s3` command, so that I have something to source in my `drake` plan.  What I really like about the `s3` commands is that I don't have to mess around with any multi-part uploads, as the AWS CLI takes care of all that complexity for me.
+
+I'll create a function that forms and executes the command. My command needs to be of the form `aws s3 cp $SOURCE $TARGET`. The `$SOURCE` or `$TARGET` variables can be either local files or objects on S3, with objects prefixed with "s3://$BUCKET". My function will take a data frame and, using the name of that data frame, determine the path of the object on S3. A more sophisticated function would be more flexible about how I'm storing the data, but this will do for my demonstration.
+
+Note the use of `shQuote` here, a base function that quotes a string to be passed to a shell.
+
+```{r aws-s3-push}
+upload_data_to_s3_bucket_as_csv <- function(data, bucket) {
+  object_name <- paste0(deparse(substitute(data)), ".csv")
+  temp_file <- tempfile()
+  # delete this temp file afterwards, even if this function errors
+  on.exit(unlink(temp_file)) 
+  readr::write_csv(data, temp_file)
+  quoted_file_path <- shQuote(temp_file)
+  quoted_object_path <- shQuote(glue::glue("s3://{bucket}/{object_name}"))
+  system(glue::glue("aws s3 cp {quoted_file_path} {quoted_object_path}"))
+}
+```
+
+## Getting object metadata
+
+The ETag is a hash that changes when the object changes^[[The ETag may or may not be an MD5 hash of the obejct data](https://docs.aws.amazon.com/AmazonS3/latest/API/RESTCommonResponseHeaders.html).]. It's a short string like "de3b6f4731f18de03e51a5fea8102c93". No matter how big an object is, the ETag stays the same size, and is quick to retrieve. This means that we can check the ETag every time a `drake` plan is made without spending too much time, and only re-download the actual data if `drake` detects a change in this value.
+
+I need to use a lower-level `s3api` command here. The `head-object` command retrieves object metadata. I convert that metadata from JSON, extract the ETag, and remove the stray quotation marks around it.
+
+```{r aws-s3-head}
+get_etag <- function(object, bucket) {
+  response <- system(
+    glue::glue("aws s3api head-object --bucket {bucket} --key {object}"),
+    intern = TRUE
+  )
+  raw_etag <- jsonlite::fromJSON(response)$ETag
+  gsub("\"", "", raw_etag)
+}
+```
+
+## Downloading from S3
+
+I'll once again use an `s3` command to download data from an S3. This function is very similar to the upload function, with the source and target reversed.
+
+```{r aws-s3-pull}
+download_and_parse_csv_from_s3_bucket <- function(object, bucket) {
+  temp_file <- tempfile()
+  # delete this temp file afterwards, even if this function errors
+  on.exit(unlink(temp_file)) 
+  quoted_file_path <- shQuote(temp_file)
+  quoted_object_path <- shQuote(glue::glue("s3://{bucket}/{object}"))
+  system(glue::glue("aws s3 cp {quoted_object_path} {quoted_file_path}"))
+  readr::read_csv(temp_file)
+}
+```
+
+## Generating some random data
+
+I'll need some data to upload to my bucket and then retrieve. Here's my go-to function for generating a data frame of random bits, adapated from [this StackOverflow answer](https://stackoverflow.com/a/19352289/8456369):
+
+```{r generating-some-random-data}
+generate_random_data <- function(nrow = 1000, ncol = 10) {
+  data.frame(replicate(ncol, sample(0:1, nrow, rep = TRUE)))
+}
+```
+
+Now I'll upload some random data to my bucket. I've created a bucket "ocelittle", which is the unofficial name of ocelot kittens. This has nothing to do with AWS; I just needed a unique name for the bucket.
+
+```{r uploading-some-random-data}
+some_random_data <- generate_random_data()
+upload_data_to_s3_bucket_as_csv(some_random_data, bucket = "ocelittle")
+get_etag("some_random_data.csv", bucket = "ocelittle")
+```
+
+## Method 1: A separate target for the ETag
+
+There are two equally valid ways to structure the `drake` plan to check the ETag. They're effectively equivalent, but there's some slight variation in how the targets are displayed when I run `drake::vis_drake_graph`.
+
+In this first method, I'll create a separate target for the ETag so that it appears in my `drake` plan visualisations, as in the plot at the top of this page. Pay close attention to the conditions for each trigger:
+
+```{r drake-plan}
+s3_plan <- drake::drake_plan(
+  etag = target(
+    get_etag("some_random_data.csv", "ocelittle"),
+    trigger = trigger(condition = TRUE)
+  ),
+  data = target(
+    download_and_parse_csv_from_s3_bucket("some_random_data.csv", "ocelittle"),
+    trigger = trigger(change = etag)
+  )
+)
+```
+
+The condition for the `etag` target is `TRUE`, which means that this target will always run when I `make` the `drake` plan. The `data` target only runs when the value of the `etag` target has changed. When I `make` this plan for the first time, both targets are executed:
+
+```{r drake-prepare, include = FALSE}
+drake::clean() # clear the cache, if it exists
+```
+
+```{r first-make}
+drake::make(s3_plan)
+```
+
+When I run the plan a second time, the `etag` target runs, as expected. But as the object's ETag hasn't changed, `drake` doesn't execute the `data` target.
+
+```{r second-make}
+drake::make(s3_plan)
+```
+
+Now I'll generate some new random data, and overwrite the previous CSV:
+
+```{r uploading-some-random-data-again}
+some_random_data <- generate_random_data()
+upload_data_to_s3_bucket_as_csv(some_random_data, bucket = "ocelittle")
+get_etag("some_random_data.csv", bucket = "ocelittle")
+```
+
+`drake` detects the change and re-downloads the data:
+
+```{r third-make}
+drake::make(s3_plan)
+```
+
+## Method 2: Embedding the ETag in the data target
+
+Rather than having a separate target for the `etag`, I can use put the `get_etag` function directly into the `change` condition for the data download target. This won't show the ETag when I run `drake::drake_vis_graph`.
+
+First, I'll clean the `drake` cache:
+
+```{r drake-clean-before-second-plan}
+drake::clean()
+```
+
+The `change` trigger accepts any R expression, so it accepts the `get_etag` function. This will run every time the plan is made.
+
+```{r s3-plan-2}
+s3_plan_2 <- drake::drake_plan(
+  data = target(
+    download_and_parse_csv_from_s3_bucket("some_random_data.csv", "ocelittle"),
+    trigger = trigger(change = get_etag("some_random_data.csv", "ocelittle"))
+  )
+)
+```
+
+```{r drake-plan-2-make-1}
+drake::make(s3_plan_2)
+```
+
+```{r drake-plan-2-make-2}
+drake::make(s3_plan_2)
+```
+
+And now, just to check, I'll upload some new data and make sure that `drake` downloads it:
+
+```{r uploading-some-random-data-again-again}
+some_random_data <- generate_random_data()
+upload_data_to_s3_bucket_as_csv(some_random_data, bucket = "ocelittle")
+get_etag("some_random_data.csv", bucket = "ocelittle")
+```
+
+```{r drake-plan-2-make-3}
+drake::make(s3_plan_2)
+```
+
+Once again, `drake` detects the change and re-downloads the data.
+
+***
+```{r sessioninfo}
+devtools::session_info()
+```
