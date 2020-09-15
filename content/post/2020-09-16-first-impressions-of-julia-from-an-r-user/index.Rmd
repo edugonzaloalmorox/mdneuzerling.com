@@ -1,0 +1,271 @@
+---
+title: First Impressions of Julia from an R User
+author: ~
+date: '2020-09-16'
+slug: first-impressions-of-julia-from-an-r-user
+tags:
+    - julia
+images: ["/img/julia.png"]
+output: hugodown::md_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = FALSE)
+library(tidyverse)
+```
+
+It's no secret that I love R and begrudgingly use Python. But there's a another option for data science, and it promises the speed of C with the ease of use of R/Python. That language is Julia, and it's a _delight_ to use. I took some time to learn the basics, and I'm sharing my impressions here.
+
+## Julia is not the most popular language in the world
+
+Before I go on, there's one thing I want to stress here: Julia is not as popular as Python or R for doing stuff with data. It doesn't have the vast library of packages/modules that the veteran languages have built up over decades.
+
+If this is a deal-breaker, then don't worry about Julia. If you want to use the languages with the most packages, or what looks best on your resume, then Python or R are better options. I'm not disparaging you either; these are good reasons.
+
+But if you --- like me --- find that writing code to do stuff with data is _fun_, then it's well worth checking out Julia. I just wanted to get that common objection out of the way first.
+
+## Multiple dispatch
+
+People are often surprised to discover that R uses a lot of object-oriented programming. R objects store their classes as vectors, and can be accessed (and modified) with the `class` function:
+
+```{r classes}
+# R
+a_tibble <- tibble::tibble(x = c(1, 2, 3), y = c(4, 5, 6))
+class(a_tibble)
+```
+
+In R, the main implementation of object-oriented programming is through a system called _S3_. When I call a _generic function_, like `print`, R looks at the class of the first argument to determine which print _method_ to use. If I `print` a data frame, then `print.data.frame` is used. If I print a linear model, then `print.lm` is used. And there are a lot of `print` methods:
+
+```{r print-methods}
+# R
+sloop::s3_methods_generic("print")
+```
+
+This process of figuring out which method to use is called _dispatch_. S3 is a _single dispatch_ system: only the classes of the first argument to the function are used to determine which method to call^[The S4 system is capable of multiple dispatch.]. Julia takes it a step further with _multiple dispatch_. And it works on _types_, not classes.
+
+## A simple example of multiple dispatch: animals
+
+Here's a simple example of multiple dispatch^[This example was discussed in a StackOverflow post that I can no longer find.]. I'll create an abstract type in Julia, called `Animal`:
+
+```{julia type-animal}
+# Julia
+abstract type Animal end
+```
+
+I'll now create two _subtypes_ of animal: `Cat` and `Dog`. These will be each be a `struct`, which is a type composed of other types. In this case, each of the two new types will have a `Name` of type `String`, and Age of type `Int`:
+
+```{julia type-cat-dog}
+struct Cat <: Animal
+    Name::String 
+    Age::Int
+end
+
+struct Dog <: Animal
+    Name::String 
+    Age::Int
+end
+```
+
+Now I'll define an `interaction` function which will output a string describing the interaction of two animals. Actually, I'll define 4 _methods_ for this function. The method that's called will depend upon the types of _both_ arguments:
+
+```{julia interactions}
+interaction(x::Cat, y::Cat) = "meow"
+interaction(x::Dog, y::Dog) = "sniff"
+interaction(x::Cat, y::Dog) = "growl"
+interaction(x::Dog, y::Cat) = interaction(y, x)
+```
+
+In any other language, it would look like I'm defining a function and then overwriting it three times. But with Julia, functions are _unique up to name and type signature_. `interaction(x::Cat, y::Cat)` has a type signature of `(Cat, Cat)` and `interaction(x::Dog, y::Dog)` has a type signature of `(Dog, Dog)`. So instead of overwriting the function I simply add a new _generic_ each time.
+
+I'll define some cats and dogs based on those I know around my neighbourhood, such as the friendly golden retriever _Hudson_ who always says good morning to me, or the stylish mini-whippet _Phoebe_ who has a new outfit every time I see her. The semicolon here tells Julia to suppress the output:
+
+```{julia define-some-animals}
+luna = Cat("Luna", 1);
+pip = Cat("Pip", 5);
+hudson = Dog("Hudson", 4);
+phoebe = Dog("Phoebe", 1);
+```
+
+And now lets see how these animals would interact:
+
+```{julia see-some-interactions}
+interaction(luna, pip)
+interaction(pip, luna)
+interaction(hudson, phoebe)
+interaction(luna, phoebe)
+```
+
+Just as expected! These animals have different interactions based on their types.
+
+Of course, I could accomplish the same thing with single dispatch and some if-else statements. But if I do that and I later want to extend the interactions to cover other animals, I have to go back and change those if-else statements. With Julia, it's just a matter of defining new functions.
+
+## Going up the type hierarchy
+
+Earlier I defined an `Animal` type, which is a supertype of `Cat` and `Dog`. Julia will always use _the most specific method it can find_. If one doesn't exist for the exact types, then it will consider supertypes. I can demonstrate this by creating a generic with type signature `(Animal, Animal)`, to be used when no more specific function can be found:
+
+```{julia gazelle}
+struct Gazelle <: Animal
+    Name::String 
+    Age::Int
+end;
+
+bob = Gazelle("Bob", 2);
+interaction(x::Animal, y::Animal) = "flee";
+interaction(hudson, bob)
+```
+
+I haven't defined a method like `interaction(x::Dog, y::Gazelle)`, so Julia goes up the type hierarchy to find `interaction(x::Animal, y::Animal)` instead.
+
+Multiple dispatch is a core concept of Julia, and one of the main reasons that it's so much faster than R or Python. Julia can compile fast functions for each type signature. And there are **a lot** of type signatures to consider. On my machine I count 184 methods for the `+` operator!
+
+## The power of macros
+
+I've become so used to R's metaprogramming features that I think I would struggle with any language that doesn't let me treat code as data to be manipulated. Julia delivers in the form of macros.
+
+I'll give an example. In most languages, the `or` logical operator is short-circuited: If the first argument is true, then the second argument isn't evaluated. This behaviour exists in R with its `||` short-circuited operator. If the first argument to `||` is `TRUE`, then R doesn't evaluate the second argument. I can even make the second argument something that throws an error and R won't complain, as long as the first argument is `TRUE`:
+
+```{r short-circuited-evaluation, error = TRUE}
+# R
+stop("Oh no!") || TRUE
+TRUE || stop("Oh no!")
+```
+
+Suppose I wanted to create a _backwards-or_ function, `bor`, that does the same thing but evaluates the second argument first. That is, I want a function `bor(x, y)` that acts just like `||`, but doesn't evaluate `x` is `y` is `TRUE`. This is pretty easy in R, and I don't even have to take advantage of metaprogramming, since R is lazily-evaluated:
+
+```{r bor, error = TRUE}
+# R
+bor <- function(x, y) y || x
+
+bor(TRUE, stop("Oh no!"))
+bor(stop("Oh no!"), TRUE)
+```
+
+Julia code is evaluated eagerly, so this won't work:
+
+```{julia bor-attempt-1, eval = FALSE}
+# Julia
+bor(x, y) = y || x
+bor(error("Oh no!"), true)
+
+# ERROR: Oh no!
+# Stacktrace:
+#  [1] error(::String) at ./error.jl:33
+#  [2] top-level scope at REPL[38]:1
+#  [3] include_string(::Function, ::Module, ::String, ::String) at ./loading.jl:1088
+```
+
+A macro, however, lets me move code around _before it is evaluted_. Macros start with the `@` symbol:
+
+```{julia macro-bor}
+macro bor(a, b) 
+    return :($b || $a)
+end;
+@bor(error("Oh no!"), true)
+```
+
+The `:` and `$` symbols are the metaprogramming power here. The `:` prefix converts to a symbol or expression, whereas `$` evaluates or _interpolates_ the expression. This is somewhat analogous to base R's `quote` and `eval` functions.
+
+These two symbols can even be combined to perform what in R is sometimes called _quasiquotation_, where some things are quoted but others are explicitly evaluated:
+
+```{julia quasiquotation}
+a = 1;
+:($a + b)
+```
+
+## Reading in CSV data
+
+Now that I've laid down some core concepts of Julia, I'll share some of my experiences with using the language for the first time.
+
+The first thing that impressed me was that Julia comes with its own package-management system: a package called `Pkg`. I tried to load the `DataFrames` package when it wasn't installed and Julia gave me the explicit command for installing it. Excellent!
+
+Reading CSVs into a data frame works exactly like you would expect. It's pretty darn fast, though; I was able to load in [a 2GB CSV of StackExchange data](https://www.kaggle.com/stackoverflow/stacksample) in under 5 seconds, and my machine isn't very powerful.
+
+```{julia read-CSV, eval = TRUE}
+using DataFrames
+using CSV
+
+questions = CSV.read("Questions.csv")
+```
+
+I like how data frames print in Julia, with the type below the column name. Something that's missing here is a list of columns which have been omitted from printing, similar to the behaviour of the `tibble` package in R. And the data frame truncation is a little aggressive; sometimes columns are not printed even though there's room.
+
+The `CSV.read` function uses multiple threads by default. I couldn't get this to work on my machine, and I had to restrict it to one thread. [I raised an issue on the GitHub page](https://github.com/JuliaData/CSV.jl/issues/721), and a maintainer came along to explain what was going on and implement a fix! What more can you ask for?
+
+## Data frames
+
+Basic data frame functions are very similar to those in R:
+
+```{julia data-frame-functions}
+nrow(questions)
+ncol(questions)
+head(questions)
+```
+
+The `describe` function, analogous to R's `summary` function`, is also quite nice. It presents a bit more information than the R equivalent, and it returns another data frame:
+
+```{julia data-frame-summary}
+describe(questions)
+```
+
+And I can retrieve an individual column (as an array) with either `questions.Score` or `questions["Score"]`.
+
+## Piping
+
+Julia supports piping. Thank goodness, too, because the `tidyverse` has spoilt me.
+
+There's a native pipe `|>` which supposedly puts the value on the left as the first argument to the function on the right, but I found it a bit finnicky. The `Pipe` package improves this substantially by allowing the use of a `_` placeholder, for example, `@pipe 4 |> sqrt(_)`. This also opens up the possibility of piping into an argument other than the first. The only downside here is that a chain of piped functions must begin with the `@pipe` macro.
+
+It would be neat if this `@pipe` macro were incorporated into base Julia, but on more than one occasion I've seen serious discussions in Julia for removing the base `|>` operator altogether. I hope that it stays, because a chain of piped functions is a beautiful sight.
+
+## Data manipulation
+
+I had a bit of trouble with `DataFrames` syntax. The easiest way I could find to manipulate data was to modify-in-place with a series of reassignments. I'll give an example. My `questions` data frame has a `Score` column. Suppose I want to scale it by 100, and then select all scores above 50 (this is some fairly arbitrary data manipulation). I then want to `describe` the data:
+
+```{julia DataFrames-basic-syntax}
+questions2 = copy(questions);
+questions2.Score = questions2.Score * 100;
+questions2 = questions2[questions2.Score .> 50, :];
+describe(questions2)
+```
+
+I had a much easier time with the `DataFramesMeta` package. This provides is an excellent, pipe-friendly package that implements some `dplyr`-like functionality, using macros:
+
+```{julia basic-data-manipulation}
+using Pipe
+using DataFramesMeta
+
+@pipe questions |> 
+  @transform(_, Score = 100 * :Score) |>
+  @where(_, :Score .> 50) |>
+  describe(_)
+```
+
+## Syntactic conventions
+
+In the above chain, I used `.>` to filter for values greater than 50. Julia functions and operators implement some very handy syntactic conventions that make life easier, and this is one of them. Vectorised operations are prefixed (or sometimes suffixed) with a dot:
+
+```{julia vectorised-operations}
+x = ["a", "b", "c"]; y = ["a", "e", "c"];
+
+x == y
+x .== y
+```
+
+Another convention is that functions that modify in place use an exclamation mark. For example, `df = sort(df)` is equivalent to `sort!(df)`. This often trips me up in Python, so I felt genuine relief to find that in Julia I don't have to guess whether or not a function will modify an argument in-place.
+
+## The real killer feature of Julia
+
+I've glossed over subjects like speed and compilation because these are areas which I'm not confident discussing. The rough idea is that Julia is _fast_, and the compiled code is often very similar to C. But a really powerful consequence of this is that _a user doesn't need to learn another language to become a contributor_.
+
+If I want to write a new package/module for R/Python, and my use-case requires speedy code, then I'm pretty much obliged to drop down to C/C++. I have the original learning curve for the language I actually want to use, followed by a second learning curve for the lower language. With Julia it's just... Julia. All Julia. [This means that you can have a machine learning library that's 100% Julia code](https://fluxml.ai/).
+
+Whenever I read the source code of an R/Python package and I see a reference to a file that ends with ".c" or ".h" I panic a little. Julia's killer feature is removing that panic moment. _Knowing Julia is enough to use Julia_.
+
+# Just give this language a go
+
+***
+```{r sessioninfo}
+devtools::session_info()
+```
+
+The Julia logo at the top of this image is the intellectual property of Stefan Karpinski, [who allows its use for non-commercial purposes](https://discourse.julialang.org/t/trademark-guidelines-fair-use-policy-for-julia-name-logo/3404/4).
