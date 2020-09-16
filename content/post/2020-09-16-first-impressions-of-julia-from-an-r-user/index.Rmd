@@ -130,7 +130,7 @@ stop("Oh no!") || TRUE
 TRUE || stop("Oh no!")
 ```
 
-Suppose I wanted to create a _backwards-or_ function, `bor`, that does the same thing but evaluates the second argument first. That is, I want a function `bor(x, y)` that acts just like `||`, but doesn't evaluate `x` is `y` is `TRUE`. This is pretty easy in R, and I don't even have to take advantage of metaprogramming, since R is lazily-evaluated:
+Suppose I wanted to create a _backwards-or_ function, `bor`, that does the same thing but evaluates the second argument first. That is, I want a function `bor(x, y)` that acts just like `||`, but doesn't evaluate `x` if `y` is `TRUE`. This is pretty easy in R, and I don't even have to take advantage of metaprogramming, since R is lazily-evaluated:
 
 ```{r bor, error = TRUE}
 # R

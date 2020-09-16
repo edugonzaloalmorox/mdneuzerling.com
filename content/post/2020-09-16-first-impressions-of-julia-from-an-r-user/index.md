@@ -214,7 +214,7 @@ I'll give an example. In most languages, the `or` logical operator is short-circ
 
 </div>
 
-Suppose I wanted to create a *backwards-or* function, `bor`, that does the same thing but evaluates the second argument first. That is, I want a function `bor(x, y)` that acts just like [`||`](https://rdrr.io/r/base/Logic.html), but doesn't evaluate `x` is `y` is `TRUE`. This is pretty easy in R, and I don't even have to take advantage of metaprogramming, since R is lazily-evaluated:
+Suppose I wanted to create a *backwards-or* function, `bor`, that does the same thing but evaluates the second argument first. That is, I want a function `bor(x, y)` that acts just like [`||`](https://rdrr.io/r/base/Logic.html), but doesn't evaluate `x` if `y` is `TRUE`. This is pretty easy in R, and I don't even have to take advantage of metaprogramming, since R is lazily-evaluated:
 
 <div class="highlight">
 
