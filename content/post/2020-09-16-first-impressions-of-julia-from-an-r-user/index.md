@@ -479,7 +479,7 @@ Another convention is that functions that modify in place use an exclamation mar
 The real killer feature of Julia
 --------------------------------
 
-I've glossed over subjects like speed and compilation because these are areas which I'm not confident discussing. The rough idea is that Julia is *fast*, and the compiled code is often very similar to C. But a really powerful consequence of this is that *a user doesn't need to learn another language to become a contributor*.
+I've glossed over subjects like speed and compilation because these are areas which I'm not confident discussing. The rough idea is that Julia is *fast*, and the compiled code is often very similar to that of C. But a really powerful consequence of this is that *a user doesn't need to learn another language to become a contributor*.
 
 If I want to write a new package/module for R/Python, and my use-case requires speedy code, then I'm pretty much obliged to drop down to C/C++. I have the original learning curve for the language I actually want to use, followed by a second learning curve for the lower language. With Julia it's just... Julia. All Julia. [This means that you can have a machine learning library that's 100% Julia code](https://fluxml.ai/).
 
