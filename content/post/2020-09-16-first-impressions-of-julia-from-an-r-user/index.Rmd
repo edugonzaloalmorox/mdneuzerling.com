@@ -154,7 +154,7 @@ bor(error("Oh no!"), true)
 #  [3] include_string(::Function, ::Module, ::String, ::String) at ./loading.jl:1088
 ```
 
-A macro, however, lets me move code around _before it is evaluted_. Macros start with the `@` symbol:
+A macro, however, lets me move code around _before it is evaluated_. Macros start with the `@` symbol:
 
 ```{julia macro-bor}
 macro bor(a, b) 
@@ -250,6 +250,8 @@ x = ["a", "b", "c"]; y = ["a", "e", "c"];
 x == y
 x .== y
 ```
+
+(2020-09-16 correction: [Ari Katz](https://twitter.com/AriKatz20/status/1306018515426652162) points out that the dot is not a convention but an actual feature of the language that vectorises operators and functions in a fast and memory-efficient way. [See this post for more details](https://julialang.org/blog/2017/01/moredots/).)
 
 Another convention is that functions that modify in place use an exclamation mark. For example, `df = sort(df)` is equivalent to `sort!(df)`. This often trips me up in Python, so I felt genuine relief to find that in Julia I don't have to guess whether or not a function will modify an argument in-place.
 

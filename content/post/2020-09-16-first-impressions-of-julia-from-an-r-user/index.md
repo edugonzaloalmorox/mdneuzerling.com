@@ -7,7 +7,7 @@ tags:
     - julia
 images: ["/img/julia.png"]
 output: hugodown::md_document
-rmd_hash: c3da8c554b5f4610
+rmd_hash: 557986af17c96074
 
 ---
 
@@ -249,7 +249,7 @@ bor(error("Oh no!"), true)
 
 </div>
 
-A macro, however, lets me move code around *before it is evaluted*. Macros start with the [`@`](https://rdrr.io/r/base/slotOp.html) symbol:
+A macro, however, lets me move code around *before it is evaluated*. Macros start with the [`@`](https://rdrr.io/r/base/slotOp.html) symbol:
 
 <div class="highlight">
 
@@ -471,6 +471,8 @@ x .== y
 </code></pre>
 
 </div>
+
+(2020-09-16 correction: [Ari Katz](https://twitter.com/AriKatz20/status/1306018515426652162) points out that the dot is not a convention but an actual feature of the language that vectorises operators and functions in a fast and memory-efficient way. [See this post for more details](https://julialang.org/blog/2017/01/moredots/).)
 
 Another convention is that functions that modify in place use an exclamation mark. For example, `df = sort(df)` is equivalent to `sort!(df)`. This often trips me up in Python, so I felt genuine relief to find that in Julia I don't have to guess whether or not a function will modify an argument in-place.
 
