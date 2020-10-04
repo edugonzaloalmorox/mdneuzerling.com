@@ -308,11 +308,9 @@ spec:
     app: plumber-on-k8s
   ports:
     - protocol: TCP
-      port: 80
+      port: 8000
       targetPort: 8000
 ```
-
-Note that I've changed the port number here. The standard HTTP port is 80. Actually, when I type "www.google.com" into my browser, it accesses "www.google.com:80" (or 443, if the connection is through SSL). But my containers are exposing port 8000. To make it so that I don't have to type the port whenever I query the API, my service accepts traffic from port 80 and direct it to port 8000 of the containers.
 
 [Services have an integrated load balance that will attempt to spread traffic evenly across the pods](https://kubernetes.io/docs/tutorials/kubernetes-basics/scale/scale-intro/). If a pod fails (as indicated by its `livenessProbe`) then traffic will be seamlessly routed to the available nodes.
 
@@ -334,23 +332,23 @@ spec:
       - path: /health
         backend:
           serviceName: plumber-on-k8s-service
-          servicePort: 80
+          servicePort: 8000
       - path: /parity
         backend:
           serviceName: plumber-on-k8s-service
-          servicePort: 80
+          servicePort: 8000
       - path: /wait
         backend:
           serviceName: plumber-on-k8s-service
-          servicePort: 80
+          servicePort: 8000
       - path: /fail
         backend:
           serviceName: plumber-on-k8s-service
-          servicePort: 80
+          servicePort: 8000
       - path: /quit
         backend:
           serviceName: plumber-on-k8s-service
-          servicePort: 80
+          servicePort: 8000
 ```
 
 Here I've specified five paths which are directed to the `plumber-on-k8s-service` I previously defined. I could make the `spec` more compact with regular expressions, or by passing on all traffic regardless of path, but I chose to be explicit here.
