@@ -1,0 +1,137 @@
+---
+title: Determining system dependencies for R projects
+author: ~
+date: '2020-10-25'
+slug: determining-system-dependencies-for-r-projects
+tags:
+    - R
+images: ["/img/dependencies.jpg"]
+output: hugodown::md_document
+---
+    
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(eval = FALSE)
+```
+
+Locking down R package dependencies and versions is a solved problem, thanks to the easy-to-use `renv` package. System dependencies --- those Linux packages that need to be installed to make certain R packages work --- are a bit harder to manage.
+
+## Option 1: Hard-coding
+
+The easiest option is to hard-code the system dependencies. I did this recently when [I was creating a Dockerfile for a very simple Plumber API](https://github.com/mdneuzerling/plumber-on-k8s/blob/e05ebd4a067ec0fd262ec04681b8ad101391e110/Dockerfile):
+
+```{bash dockerfile}
+RUN apt-get update -qq && apt-get -y --no-install-recommends install \
+	make \
+	libsodium-dev \
+	libicu-dev \
+	libcurl4-openssl-dev \
+	libssl-dev
+```
+
+My Dockerfile used only three R packages and so its system dependencies were not complicated. There are two ways of determining which packages to install:
+
+1. (The bad way) Try to `build` the Dockerfile and use the errors to determine which dependencies are missing, or
+1. (The good way) Use [The RStudio Package Manager](https://packagemanager.rstudio.com/client/#/).
+
+The RStudio Package Manager (RSPM) has had a huge impact on my R workflow. It just makes life easier. In this case, [it tells me the system dependencies for each R package, as well as the installation commands](https://packagemanager.rstudio.com/client/#/repos/1/packages/plumber). System dependencies vary between Linux distributions and releases, and RSPM takes this into account.
+
+Hardcoding system dependencies into Dockerfiles or CI/CD pipelines makes sense for small, throwaway projects, but isn't a great idea for ongoing and dynamic projects. A better option is to automatically determine these dependencies automatically.
+
+## Option 2: From package DESCRIPTIONs
+
+There are some great options for determining system dependencies automatically from package DESCRIPTION files. These files contain lists of dependencies for the package, so all that's needed is an established repository to translate those R dependencies to system dependencies.
+
+[RSPM has a public API](https://packagemanager.rstudio.com/__api__/swagger/index.html), and that has a few endpoints for querying system dependencies. [The `remotes` package offers the `system_requirements` function](https://rdrr.io/cran/remotes/man/system_requirements.html), which queries the RSPM API for the system dependencies of a package. The package can be on CRAN, or it can be a package under local development; in this case, the DESCRIPTION file is used.
+
+An important use-case for this is in creating continuous integration pipelines for a package in development. Every time the package is updated a fresh environment is used for testing, so system dependencies need to be installed each time. The [r-lib actions repository](https://github.com/r-lib/actions) has an example of a [standard package check in Github Actions](https://github.com/r-lib/actions/blob/673b3c925483f67fa939c31748562af36bb4cde2/examples/check-standard.yaml#L58) that does this:
+
+```{bash remotes_install_system_dependencies, eval=FALSE}
+- name: Install system dependencies
+  if: runner.os == 'Linux'
+  run: |
+    while read -r cmd
+    do
+      eval sudo $cmd
+    done < <(Rscript -e 'writeLines(remotes::system_requirements("ubuntu", "20.04"))')
+```
+
+[An earlier version of this workflow](https://github.com/r-lib/actions/blob/df2ff6518076b804295296769e68d858c38088ea/examples/check-standard.yaml#L54) used [the `sysreqs` package](https://www.google.com/search?channel=fs&client=ubuntu&q=sysreqs+r+package), which calls on [https://sysreqs.r-hub.io/](https://sysreqs.r-hub.io/) to perform this translation:
+
+```{bash sysreqs, eval=FALSE}
+- name: Install system dependencies
+  if: runner.os == 'Linux'
+  env:
+    RHUB_PLATFORM: linux-x86_64-ubuntu-gcc
+  run: |
+    Rscript -e "remotes::install_github('r-hub/sysreqs')"
+    sysreqs=$(Rscript -e "cat(sysreqs::sysreq_commands('DESCRIPTION'))")
+    sudo -s eval "$sysreqs"
+```
+
+Most of the work in this space has been done by Jim Hester, whose contributions to Github Actions for R have made my life much, much easier.
+
+## Option 3: From `renv` lock files
+
+While `remotes::system_requirements` function is great for package development, it doesn't cover every R project. The emerging standard for managing R package dependencies is `renv`. Given this, and given `renv`'s capacity to automatically detect package dependencies, it makes sense to explore linking `renv` lock files to system dependencies.
+
+Before I go on, I'll just say that I would be _very surprised_ if this hasn't been done before, or someone isn't already looking at this.
+
+[The RSPM API](https://packagemanager.rstudio.com/__api__/swagger/index.html) contains an endpoint for querying system dependencies with a list of packages, rather than a DESCRIPTION file. Here's an example query:
+
+```
+http://packagemanager.rstudio.com/__api__/repos/1/sysreqs?all=false&pkgname=plumber&pkgname=rmarkdown&distribution=ubuntu&release=20.04
+```
+
+Despite what the Swagger page says, the package names need to be specified each with `pkgname=`, rather than being separated by commas.
+
+The result is a JSON that needs to be parsed into something usable. [I've created a package that does just this](https://github.com/mdneuzerling/getsysreqs). It's a very low-effort package, so please don't use it for anything serious. Or better yet, don't use it at all. But it does show that the RSPM API supports this use-case:
+
+```{r install-getsysreqs, eval=TRUE, include=FALSE}
+if (!require("getsysreqs")) {
+  remotes::install_github("mdneuzerling/getsysreqs", ref = "main")
+}
+```
+
+```{r getsysreqs-package-vector, eval=TRUE, cache=TRUE}
+library(getsysreqs)
+
+get_sysreqs(
+  c("plumber", "rmarkdown"),
+  distribution = "ubuntu",
+  release = "20.04"
+)
+```
+
+With a little more JSON-parsing, it's possible to extract the R package dependencies from an `renv` lock file. Here's an example from a more complicated project:
+
+```{r getsysreqs-renv-lockfile, eval=TRUE, cache=TRUE}
+get_sysreqs(
+  "renv.lock",
+  distribution = "ubuntu",
+  release = "20.04"
+)
+```
+
+And with only a little bit of string manipulation, it's possible to generate install commands:
+
+```{r apt-get-install, eval=TRUE, cache=TRUE}
+apt_get_install(
+  "renv.lock",
+  distribution = "ubuntu",
+  release = "20.04"
+)
+```
+
+This isn't perfect:
+
+1. Currently this only accepts CRAN dependencies. The RSPM API returns an error when a non-existent package is in the request. An alternative would be to query every package separately and ignore the errors for non-existent packages, but I'm cautious about querying the API too frequently.
+1. Prefixing every dependency with `apt-get install` is naïve. System dependencies may have commands that need to be run before or after installation (Java, always Java). Fortunately, the RSPM API also tracks these.
+1. Not every Linux distribution uses `apt`.
+
+***
+```{r sessioninfo, eval = TRUE}
+devtools::session_info()
+```
+
+The image at the top of this page is in the public domain, [and was downloaded from Pexels](https://www.pexels.com/photo/person-in-black-leather-boots-sitting-on-brown-cardboard-boxes-4553277/).
+
